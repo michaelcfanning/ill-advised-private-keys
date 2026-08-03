@@ -121,16 +121,84 @@ scanning) fires on any checksum-valid mnemonic; wallet import blocks only
 low-entropy ones, on entropy-compressibility, non-blocking. Plus the
 poisoned-address denylist, seeded in `Econ.SeedDenylist`.
 
-## 9. Ethics and disclosure [HAVE, from MISSION.md]
+## 9. Ethics and disclosure [HAVE]
 
-Funds-neutral (touches nothing, cannot sign); public data only; minimal retention
-(pattern_id, not seeds); never asserts attribution; defense ships before
-disclosure; tiered disclosure posture; why "warn with a transaction" is rejected.
-This section is node-independent — write it in full now.
+This work measures live theft of real funds from real people, so we treat ethics
+as a design constraint, not an afterthought. Our full charter is in MISSION.md;
+the operative commitments for review:
 
-## 10. Related work [TODO]
-Vasek et al. FC16; Castellucci (brainflayer, DEF CON 23); Milk Sad (weak RNG);
-address-clustering; blockchain economic-measurement literature.
+**We touch no funds, and the tool cannot.** No transaction is ever signed with a
+key we did not generate — no spends, sweeps, dust, on-chain warnings, or
+recovery-into-escrow. This is enforced architecturally: no code path in the
+scanner constructs, signs, or broadcasts a transaction. It derives keys and
+addresses and queries balances, and it is open source so the guarantee is
+auditable rather than asserted. We explicitly considered and rejected a "send a
+tiny amount to warn the owner" intervention: it is theft of the commingled funds
+of colliding claimants (§3), and the full-RBF mempool race among drainers means a
+warning transaction is simply out-bid and triggers the very sweep it warns of.
+
+**Public data only, minimal retention.** We read public chain state and public
+dumps, access no private system, and respect the rate limits and terms of any API
+we query. Findings retain only `(pattern_id, derivation_path, address,
+ever_funded, first_seen, swept_after)`. We store no mnemonics, seeds, or private
+keys — the pattern id regenerates a candidate, so storing the secret would only
+create a target.
+
+**No attribution, no deanonymization.** We can say an address is derivable from a
+low-entropy mnemonic and name the pattern class; we cannot and do not say whose it
+is. Key collisions (§3) can make an ownership claim outright false, and a wrong
+attribution is the one way a read-only project causes harm. We make no attempt to
+cluster funders to real-world identities, and report victim counts only as bounds.
+
+**Human subjects.** The study observes public transaction records with no
+interaction with, or intervention on, any person, and collects no PII beyond
+public addresses; under the Common Rule it is not human-subjects research. Where a
+co-author's institution requires it, we will obtain a determination letter.
+Anonymized artifact for double-blind review; open-sourced on publication.
+
+**Defense before disclosure.** The library and wallet fixes and the
+poisoned-address list need no knowledge of *which* addresses are funded, only of
+*which patterns* are weak. We land those on aggregate statistics first and decide
+separately what specifics to publish. The disclosure posture is deliberately
+data-driven: whether funded addresses are swept in seconds or sit untouched for
+years determines who publication endangers, which is precisely what §7.3–7.4
+measure. Tiers, descending by impact: (1) library/wallet fixes with no offensive
+detail; (2) a k-anonymity address-lookup that reveals nothing about who checks and
+enumerates no target list; (3) routing specific findings through parties who can
+identify owners (exchange compliance, wallet vendors, CERTs); (4) publication of
+the vulnerability class with aggregate statistics and no keys. Untouched funds are
+what publication could endanger; for those we publish the class without the recipe
+and route through intermediaries with delay.
+
+**Dual-use.** Enumerating weak keys is the same act whether attacker or defender;
+attackers have demonstrably done it for a decade (§7.4). We reduce marginal harm
+by publishing no wordlists, seeds, or a runnable target list, by shipping the
+defensive detector and denylist as the primary artifact, and by withholding the
+per-finding "recipe" behind the disclosure tiers above.
+
+## 10. Related work [HAVE]
+
+**Brainwallets.** Vasek, Bonneau, Castellucci, Keith, and Moore, "The Bitcoin
+Brain Drain" (FC 2016), measured our headline metrics for `SHA256(password)`
+brainwallets: 884 wallets over 2011–2015, ~$100K drained, all but 21 emptied
+(median 21 minutes), roughly a dozen drainers competing on fees. Castellucci's
+`brainflayer` and DEF CON 23 talk are the offensive complement. We borrow their
+methodology (sweep latency, repeated-drain-per-family inference, compressed/
+uncompressed fan-out) and apply it to a disjoint population — BIP-39
+mnemonic-pattern keys and `SHA256(pw)`-as-BIP-39-entropy (family F7), which no
+brainwallet scanner reaches because the derivation diverges immediately.
+
+**Weak randomness.** Milk Sad (CVE-2023-39910) covers weak-RNG BIP-39 generation
+(a 32-bit Mersenne-Twister seed) at scale — a different root cause (broken
+entropy source) than ours (deliberately memorable, structurally low-entropy
+mnemonics), but the same downstream loss and sweeping dynamics.
+
+**Address clustering and measurement.** Meiklejohn et al., "A Fistful of Bitcoins"
+(IMC 2013), established the common-input-ownership heuristic we use, with bounds,
+for the funder/sweeper analysis (§7.5) — while heeding its known limitations under
+mixing and exchange hot wallets. Our economic analysis follows the blockchain
+measurement-economics tradition, valuing flows in USD-at-transaction-time and
+reporting losses as lower bounds over a defined weak-key universe.
 
 ## 11. Limitations [HAVE, from ECONOMICS.md]
 Deliberate-deposit contamination; lower-bound framing (only enumerated patterns);
