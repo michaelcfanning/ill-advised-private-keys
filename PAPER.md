@@ -36,38 +36,54 @@ statistics before disclosing specifics.
 
 ## Target venues
 
-**Decision (2026-08-03): FC'27 is the target.** ACM AFT's cycle deadline has
-already passed, and WEIS 2027 has no announced dates yet, so FC'27 is both the
-best-fit venue (direct FC16 lineage) and the one with a live, hittable deadline.
-FC forbids concurrent submission, so this is a single-venue submit; if rejected we
-resubmit to the next venue below whose deadline is then open. Preprint timing
-stays subject to the aggregate-first disclosure posture.
+**Decision (2026-08-03): target USENIX Security '27 Cycle 1 (25 Aug 2026).** The
+draw is USENIX's two-cycle model: a **major-revision** decision invites
+resubmission to Cycle 2 (26 Jan 2027) with the *same reviewers* and a concrete
+fix-list — so submitting Cycle 1 buys a built-in second attempt with continuity,
+which a single accept/reject venue does not offer. Outcomes all favor it: accept →
+done at a top venue; major revision → Cycle 2 with a head start; reject → a later
+venue. The tradeoff we accept: Cycle 1 overlaps FC'27 (17 Sep 2026) under the
+no-concurrent-submission rule, so this **forgoes FC'27** — worth it, since USENIX
+is higher-prestige and its revise/resubmit path outweighs FC's FC16-lineage edge.
+FC becomes a later-year fallback.
 
-1. **Financial Cryptography and Data Security — FC'27 (TARGET).** The direct
-   lineage — FC16 is the paper we extend. Accra Beach Hotel, Barbados,
-   8–12 Feb 2027. Firm paper deadline **17 Sep 2026, 23:59 AoE**; notification
-   5 Nov 2026; final pre-proceedings 22 Dec 2026. (Associated workshops have an
-   earlier 1 Sep 2026 deadline — a fallback if the main measurement isn't ready.)
-   Categories: **Regular 15 pp**, **Short 8 pp** (title prefixed "Short Paper:"),
-   **SoK 20 pp** (prefixed "SoK:"), all excluding references/appendices. Mandatory
-   anonymization (no names, affiliations, acknowledgments, or obvious references),
-   COI disclosure, and a no-concurrent-submission attestation.
+This is a ~3-week sprint for a full-time author. The only real dependency is an
+**ever-funded address set** for the arrival-rate result (a current-balance set
+can't show funded-then-drained victims); obtain it from a third-party dump rather
+than waiting on the local node. If the sprint slips, FC'27 (17 Sep) is the natural
+buffer for the same paper. Preprint timing stays subject to the aggregate-first
+disclosure posture.
 
-Resubmission ladder if FC'27 rejects (submit to the first with an open deadline):
+1. **FC'27 — early shot (TARGET).** Financial Cryptography, the direct FC16
+   lineage. Accra Beach Hotel, Barbados, 8–12 Feb 2027. Firm paper deadline
+   **17 Sep 2026, 23:59 AoE**; notification 5 Nov 2026; final pre-proceedings
+   22 Dec 2026. (Associated workshops have an earlier 1 Sep 2026 deadline — a
+   fallback if the main measurement isn't ready.) Categories: **Regular 15 pp**,
+   **Short 8 pp** ("Short Paper:" prefix), **SoK 20 pp** ("SoK:" prefix), excluding
+   references/appendices. Mandatory anonymization, COI disclosure, and a
+   no-concurrent-submission attestation.
 
-2. **WEIS (Workshop on the Economics of Information Security).** The economics and
-   defense-ROI framing is squarely on-topic; friendly to independent researchers.
-   Verified Aug 2026: no WEIS 2027 CFP/host/portal yet. WEIS 2026 (25th, UC
-   Berkeley, 2–3 Jun 2026, deadline 1 Feb 2026) has passed; submissions run through
-   EasyChair. On the usual cadence the WEIS 2027 CFP should appear late 2026 with a
-   ~Feb 2027 deadline — i.e. *after* FC'27 notification (5 Nov 2026), so its portal
-   would plausibly be open in time to serve as the first resubmission rung.
-3. **ACM AFT (Advances in Financial Technologies).** Strong crypto/measurement
-   fit; this cycle's deadline already missed — a next-cycle option.
-4. **Reach — USENIX Security / IEEE S&P / CCS / NDSS.** Competitive but open to
-   independents; USENIX publishes substantial measurement work.
-5. **Preprint — IACR ePrint and/or arXiv (cs.CR),** to timestamp and gather
-   feedback, subject to the disclosure posture (aggregate first, no keys).
+2. **USENIX Security '27 — top-tier; higher prestige than FC.** Denver,
+   11–13 Aug 2027. Two cycles: **Cycle 1 paper 25 Aug 2026** (reg + abstract
+   18 Aug, artifacts 28 Aug) and **Cycle 2 paper 26 Jan 2027** (reg + abstract
+   19 Jan). Format: **13 pp** body (+refs/appendices), double-blind (anonymous
+   artifact links), **mandatory Open Science Appendix** (our open-source scanner +
+   `selftest` satisfies this as a strength), ethics appendix strongly encouraged.
+   Cycle 1 is a live **stretch target** (~3 weeks) for a full-time author — the
+   only real dependency is an ever-funded address set for the arrival-rate result,
+   obtainable from a third-party dump without waiting for the local node. Cycle 2
+   is the standing fallback, and USENIX's revision/resubmit model extends it.
+
+Later rungs if both miss:
+
+3. **WEIS.** Economics/defense-ROI framing on-topic; friendly to independents.
+   Verified Aug 2026: no WEIS 2027 CFP/host/portal yet; WEIS 2026 (UC Berkeley,
+   2–3 Jun 2026, deadline 1 Feb 2026) has passed. On the usual cadence the 2027 CFP
+   should appear late 2026 with a ~Feb 2027 deadline.
+4. **ACM AFT** — strong fit; this cycle's deadline already missed (next-cycle).
+5. **Reach — IEEE S&P / CCS / NDSS.**
+6. **Preprint — IACR ePrint / arXiv (cs.CR)** to timestamp and gather feedback,
+   subject to the disclosure posture (aggregate first, no keys).
 
 ## Logistics for an independent submitter
 
