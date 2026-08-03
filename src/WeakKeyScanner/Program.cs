@@ -57,7 +57,8 @@ static async Task<int> RunScan(string[] args)
     // The few hits are always deep-analyzed (funders, sweepers, dates) unless disabled.
     EsploraClient? enrich = o.NoEnrich ? null : apiClient;
 
-    var patternType = $"repeated-word/{o.WordCount}" + (o.FirstOnly ? "/first-completion" : "");
+    var spec = PatternSpec.Parse(o.Pattern);
+    var patternType = $"{spec.Name}/{o.WordCount}" + (o.FirstOnly ? "/first-completion" : "");
     using var findings = new FindingsWriter(o.OutFile, o.Append);
 
     Console.WriteLine("ill-advised-private-keys — weak key scanner");
@@ -69,7 +70,7 @@ static async Task<int> RunScan(string[] args)
     Console.WriteLine($"out         : {findings.Path}{(o.Append ? " (append)" : "")}");
     Console.WriteLine(new string('=', 72));
 
-    var keys = RepeatedWordGenerator.All(o.WordCount, o.FromWord, o.ToWord, o.FirstOnly);
+    var keys = PatternGenerator.All(spec, o.WordCount, o.FromWord, o.ToWord, o.FirstOnly);
     var scanner = new Scanner(oracle, enrich, findings, Network.Main, o.Indices, o.Threads);
 
     using var cts = new CancellationTokenSource();
@@ -87,20 +88,22 @@ static async Task<int> RunScan(string[] args)
 }
 
 file sealed record Options(
-    int WordCount, int FromWord, int ToWord, bool FirstOnly,
+    string Pattern, int WordCount, int FromWord, int ToWord, bool FirstOnly,
     string Oracle, string? SetFile, int Indices, int Threads, bool NoEnrich, bool Append, string OutFile)
 {
     public static Options Parse(string[] args)
     {
         int wordCount = 12, indices = 1, words = 2048, from = 0, to = -1, threads = 0;
         bool firstOnly = false, noEnrich = false, append = false;
-        string oracle = "offline", outFile = Path.Combine(AppContext.BaseDirectory, "out", "scan.findings.jsonl");
+        string oracle = "offline", pattern = "repeat";
+        string outFile = Path.Combine(AppContext.BaseDirectory, "out", "scan.findings.jsonl");
         string? set = null;
 
         for (int i = 1; i < args.Length; i++)
         {
             switch (args[i])
             {
+                case "--pattern": pattern = args[++i]; break;
                 case "--wordcount": wordCount = int.Parse(args[++i]); break;
                 case "--words": words = int.Parse(args[++i]); break;
                 case "--from": from = int.Parse(args[++i]); break;
@@ -119,7 +122,7 @@ file sealed record Options(
 
         int fromWord = from;
         int toWord = to >= 0 ? to : Math.Min(2048, from + words);
-        return new Options(wordCount, fromWord, toWord, firstOnly, oracle, set, indices, threads, noEnrich, append, outFile);
+        return new Options(pattern, wordCount, fromWord, toWord, firstOnly, oracle, set, indices, threads, noEnrich, append, outFile);
     }
 }
 
