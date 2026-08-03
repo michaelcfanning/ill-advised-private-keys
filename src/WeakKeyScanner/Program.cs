@@ -6,6 +6,7 @@ using WeakKeyScanner;
 //   (no args) | control      Positive-control test: the zero-entropy vector.
 //   selftest --set FILE      Prove the offline oracle can emit a true positive.
 //   analyze FILE [--events OUT]  Classify findings into compromise events (ECONOMICS.md).
+//   bcscan --weakset F --dumps D  Ever-funded oracle: intersect weak addrs w/ Blockchair outputs.
 //   scan [options]           Enumerate repeated-word candidates and check funding.
 //
 // scan options:
@@ -52,6 +53,11 @@ if (args[0] == "brainscan")
 if (args[0] == "selftest")
 {
     return RunSelfTest(args);
+}
+
+if (args[0] == "bcscan")
+{
+    return BlockchairScan.Run(args);
 }
 
 Console.Error.WriteLine($"unknown command: {args[0]}");

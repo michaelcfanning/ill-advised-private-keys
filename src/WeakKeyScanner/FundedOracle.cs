@@ -87,7 +87,10 @@ public sealed class OfflineSetOracle : IFundedOracle
         return (cut < 0 ? span : span[..cut]).ToString();
     }
 
-    private static ulong Hash(string s)
+    private static ulong Hash(string s) => Fnv1a(s);
+
+    /// <summary>FNV-1a over the address string — the shared hash for all offline membership sets.</summary>
+    public static ulong Fnv1a(string s)
     {
         ulong h = 1469598103934665603UL; // FNV-1a offset basis
         foreach (char c in s) { h ^= (byte)c; h *= 1099511628211UL; }
