@@ -39,7 +39,14 @@ statistics before disclosing specifics.
 Ranked by fit, not prestige:
 
 1. **Financial Cryptography and Data Security (FC).** The direct lineage — FC16 is
-   the paper we extend. Primary target.
+   the paper we extend. **Primary target: FC'27** (Accra Beach Hotel, Barbados,
+   8–12 Feb 2027). Firm paper deadline **17 Sep 2026, 23:59 AoE**; notification
+   5 Nov 2026; final pre-proceedings 22 Dec 2026. (Associated workshops have an
+   earlier 1 Sep 2026 deadline — a fallback if the main measurement isn't ready.)
+   Categories: **Regular 15 pp**, **Short 8 pp** (title prefixed "Short Paper:"),
+   **SoK 20 pp** (prefixed "SoK:"), all excluding references/appendices. Mandatory
+   anonymization (no names, affiliations, acknowledgments, or obvious references),
+   COI disclosure, and a no-concurrent-submission attestation.
 2. **WEIS (Workshop on the Economics of Information Security).** The economics and
    defense-ROI framing is squarely on-topic; friendly to independent researchers.
 3. **ACM AFT (Advances in Financial Technologies).** Strong crypto/measurement fit.
@@ -127,7 +134,14 @@ poisoned-address list grounded in the measurement.
 
 ## Open decisions
 
-- Primary venue: FC vs. WEIS (deadlines drive this — build the deadline calendar).
+- **FC'27 runway is tight (~6 weeks to 17 Sep 2026) and the headline arrival-rate
+  number is gated on the still-syncing node.** Realistic options, in order:
+  (a) a **Short Paper (8 pp)** on the methodology + the mnemonic-space measurement
+  (swept-clean result, recon hits) + pre-registered economics, arrival rate framed
+  as forthcoming; (b) full **Regular paper** only if the index finishes and the
+  economic headline lands in time; (c) an FC **workshop** (1 Sep deadline) as a
+  venue for the in-progress measurement. Decide once the node's ETA is known.
+- Primary venue: FC'27 (above) vs. WEIS (later deadline, more economics runway).
 - Solo vs. one academic co-author.
 - Preprint timing vs. disclosure posture (aggregate-first constraint).
 - How much of the poisoned-address list is publishable vs. routed through

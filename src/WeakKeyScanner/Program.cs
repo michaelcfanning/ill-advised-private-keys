@@ -5,6 +5,7 @@ using WeakKeyScanner;
 //
 //   (no args) | control      Positive-control test: the zero-entropy vector.
 //   selftest --set FILE      Prove the offline oracle can emit a true positive.
+//   analyze FILE [--events OUT]  Classify findings into compromise events (ECONOMICS.md).
 //   scan [options]           Enumerate repeated-word candidates and check funding.
 //
 // scan options:
@@ -30,8 +31,17 @@ if (args[0] == "scan")
 
 if (args[0] == "analyze")
 {
-    if (args.Length < 2) { Console.Error.WriteLine("usage: analyze <findings.jsonl>"); return 2; }
-    return Analyze.Run(args[1]);
+    if (args.Length < 2) { Console.Error.WriteLine("usage: analyze <findings.jsonl> [--events OUT.jsonl]"); return 2; }
+    string? eventsOut = null;
+    for (int i = 2; i < args.Length; i++)
+    {
+        switch (args[i])
+        {
+            case "--events": eventsOut = args[++i]; break;
+            default: Console.Error.WriteLine($"unknown option: {args[i]}"); return 2;
+        }
+    }
+    return Analyze.Run(args[1], eventsOut);
 }
 
 if (args[0] == "brainscan")
@@ -283,7 +293,7 @@ file sealed record Options(
 
 file static class Analyze
 {
-    public static int Run(string path)
+    public static int Run(string path, string? eventsOut = null)
     {
         if (!File.Exists(path)) { Console.Error.WriteLine($"not found: {path}"); return 2; }
 
@@ -324,6 +334,49 @@ file static class Analyze
         Console.WriteLine("top sweepers (drainer set — by # of weak addresses drained):");
         foreach (var (addr, set) in sweeperReach.OrderByDescending(kv => kv.Value.Count).Take(15))
             Console.WriteLine($"  {set.Count,4}  {addr}");
+
+        // ---- Economic classification (ECONOMICS.md) ----
+        var (keys, addrs) = Econ.SeedDenylist();
+        var events = findings.Select(f => Econ.ToEvent(f, keys, addrs)).ToList();
+
+        Console.WriteLine();
+        Console.WriteLine("compromise events by classification:");
+        foreach (var g in events.GroupBy(e => e.Classification).OrderByDescending(g => g.Count()))
+        {
+            decimal btc = g.Sum(e => e.DepositValueBtc);
+            Console.WriteLine($"  {g.Count(),5}  {g.Key,-22}  deposits {btc:0.########} BTC");
+        }
+
+        // Loss reported three ways, per ECONOMICS.md (never one line-drawing).
+        decimal Loss(params string[] cls) =>
+            events.Where(e => cls.Contains(e.Classification)).Sum(e => e.DepositValueBtc);
+        Console.WriteLine();
+        Console.WriteLine("loss basis (deposit BTC; USD-at-time is node-gated, pending index):");
+        Console.WriteLine($"  victims only          : {Loss("victim"):0.########} BTC");
+        Console.WriteLine($"  victims + ambiguous   : {Loss("victim", "ambiguous"):0.########} BTC");
+        Console.WriteLine($"  all events            : {events.Sum(e => e.DepositValueBtc):0.########} BTC");
+
+        // Arrival series — the freshness signal (needs ever-funded first_seen to be
+        // complete; here it is over the current finding set only).
+        var arrivals = events
+            .Where(e => e.Classification is "victim" or "ambiguous" && e.FirstSeen is { Length: >= 4 })
+            .GroupBy(e => e.FirstSeen![..4])
+            .OrderBy(g => g.Key)
+            .ToList();
+        if (arrivals.Count > 0)
+        {
+            Console.WriteLine();
+            Console.WriteLine("victim/ambiguous first-funding by year (arrival rate):");
+            foreach (var g in arrivals)
+                Console.WriteLine($"  {g.Key}  {new string('#', Math.Min(40, g.Count()))} {g.Count()}");
+        }
+
+        if (eventsOut is not null)
+        {
+            Econ.WriteEvents(events, eventsOut);
+            Console.WriteLine();
+            Console.WriteLine($"compromise events written: {System.IO.Path.GetFullPath(eventsOut)} ({events.Count} records)");
+        }
 
         return 0;
     }

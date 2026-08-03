@@ -57,22 +57,30 @@ brainwallet loss headlines died on exactly this rock, and a reviewer will reach
 for it first.
 
 We therefore classify every event before counting it. The rule is
-**deposit-behavior based, not amount-based alone**, and pre-registered here:
+**deposit-behavior based, not amount-based alone**, and pre-registered here with
+concrete thresholds (implemented in the `analyze` command as `Econ.Classify`; the
+constants and this text must stay in sync, and any change is a methodology change
+recorded in git):
 
-- **Deliberate (excluded from loss).** The address matches a *published* weak key
-  (famous brainwallets, `abandon…about`, `privkey=1`, test vectors — a maintained
-  denylist); or it shows the tip signature (many small deposits from many sources
-  over a long window, characteristic of a public curiosity, not a wallet in use);
-  or a single deposit at or below a dust threshold we fix in advance.
-- **Plausible victim (counted).** A non-published weak address, funded once or a
-  few times with a non-trivial, non-round amount, swept once and not re-used as a
-  standing wallet.
-- **Ambiguous (reported, quarantined).** Everything else. We publish the totals
-  three ways — victims only, victims + ambiguous, and everything — so the reader
-  sees the sensitivity rather than trusting our line-drawing.
+- **Deliberate — published (excluded from loss).** The address or key matches a
+  *published* weak key (famous brainwallets, `abandon…about`, `privkey=1`, test
+  vectors — a maintained denylist, seeded in `Econ.SeedDenylist`).
+- **Deliberate — dust (excluded).** A single deposit (`inbound ≤ 1`) at or below
+  **0.0001 BTC (10,000 sat)**.
+- **Deliberate — tip (excluded).** The tip signature: **≥ 10 deposits**, mean
+  deposit **≤ 0.002 BTC (200,000 sat)**, from **≥ 5 distinct funders** — a public
+  curiosity, not a wallet in use.
+- **Plausible victim (counted).** A non-published weak address, funded above the
+  dust floor, and swept (`outbound > 0`) — not left standing as a wallet.
+- **Ambiguous (reported, quarantined).** Everything else (e.g. funded above dust
+  but never swept, still holding a balance). We publish the totals three ways —
+  victims only, victims + ambiguous, and everything — so the reader sees the
+  sensitivity rather than trusting our line-drawing.
 
 The denylist of published keys is itself a contribution: it is the seed of the
-poisoned-address list the defense ships.
+poisoned-address list the defense ships. These amount thresholds are deliberately
+conservative and will be revisited against the observed profitability threshold
+(below) once sweep-fee data exists; that revision, if any, is logged in git.
 
 ## Loss, valued two ways
 
@@ -192,12 +200,21 @@ and we do not guess it.
 
 ## Output: the schema `analyze` must emit
 
-To make this runnable the moment the index is ready, the analysis step emits one
-record per compromise event with the fields listed under *Unit of analysis*, plus
-per-sweeper aggregates (longevity, cumulative gain, fingerprint) and the
-per-period arrival series. The classifier writes the `classification` label; the
-loss totals are a group-by over it. Nothing about a mnemonic or key is stored —
-only the pattern_id, per MISSION.md principle 4.
+`analyze FILE --events OUT.jsonl` emits one `EconEvent` record per compromise
+event with the fields listed under *Unit of analysis*, and prints the
+classification breakdown, the three-way loss totals, and the by-year arrival
+series. The classifier writes the `classification` label; the loss totals are a
+group-by over it. Nothing about a mnemonic or key is stored — only the pattern_id,
+per MISSION.md principle 4.
+
+Implemented now, from a `Finding`: classification, funding/sweep tx counts,
+deposit/swept BTC, funder/sweeper counts, first/last seen, active-window days.
+Node-gated (declared as null fields until the ever-funded index + a price series
+exist): `deposit_value_usd_at_deposit`, `swept_value_usd_at_sweep`, and precise
+`sweep_latency_seconds` — all three need per-transaction timestamps the aggregate
+enrichment does not yet retain. Per-sweeper longevity/cumulative-gain aggregates
+and full arrival rates likewise firm up once the index replaces the rate-limited
+API as the data source.
 
 ## Pre-registration statement
 
