@@ -64,9 +64,8 @@ byte-oriented eyeball check or heuristic misses it entirely.
 
 ## F2 — Hex-word fills
 
-The wide-unit case, where full enumeration is impossible and a dictionary is
-correct. This is the most *human* family in the list and probably the highest
-yield, because programmers converge hard on the same magic constants:
+Full enumeration is impossible at this width, so use a dictionary. Likely high
+yield: programmers converge on the same magic constants.
 
 ```
 deadbeef  cafebabe  feedface  baadf00d  deadc0de  8badf00d  decafbad
