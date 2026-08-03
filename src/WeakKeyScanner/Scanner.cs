@@ -46,21 +46,22 @@ public sealed class Scanner
                 var info = await _oracle.LookupAsync(d.Address, ct);
                 if (info is null) continue;
 
-                var f = info.Value;
-                if (f.TxCount == 0 && _enrich is not null) // offline hit: fill in details
+                hits++;
+                AddressActivity a;
+                if (_enrich is not null)
                 {
-                    try { f = await _enrich.CheckAsync(d.Address, ct); } catch { /* keep marker */ }
+                    try { a = await _enrich.AnalyzeAsync(d.Address, ct); }
+                    catch { a = Marker(info.Value); }
+                }
+                else
+                {
+                    a = Marker(info.Value);
                 }
 
-                hits++;
-                _findings.Write(new Finding(
-                    patternType, wk.Mnemonic, d.Kind, d.Path, "bitcoin", d.Address,
-                    f.EverFunded, f.TxCount, f.TotalReceivedSats, f.BalanceSats,
-                    Explorers.Address(d.Address)));
-
+                _findings.Write(Finding.From(patternType, wk.Mnemonic, d, a));
                 Console.WriteLine($"  >>> HIT  {d.Kind}  {d.Address}");
                 Console.WriteLine($"      key : {wk.Mnemonic}");
-                Console.WriteLine($"      {Format.Activity(f)}");
+                Console.WriteLine($"      {Format.Activity(a)}");
                 Console.WriteLine($"      {Explorers.Address(d.Address)}");
             }
 
@@ -71,6 +72,10 @@ public sealed class Scanner
         sw.Stop();
         return new ScanStats(candidates, addresses, hits, sw.Elapsed);
     }
+
+    private static AddressActivity Marker(FundingInfo f) => new(
+        f.EverFunded, f.TxCount, f.TotalReceivedSats, f.BalanceSats,
+        null, null, 0, 0, Array.Empty<string>(), Array.Empty<string>());
 
     private static void ReportProgress(long candidates, long addresses, int hits, Stopwatch sw)
     {

@@ -27,6 +27,12 @@ if (args[0] == "scan")
     return await RunScan(args);
 }
 
+if (args[0] == "analyze")
+{
+    if (args.Length < 2) { Console.Error.WriteLine("usage: analyze <findings.jsonl>"); return 2; }
+    return Analyze.Run(args[1]);
+}
+
 Console.Error.WriteLine($"unknown command: {args[0]}");
 return 2;
 
@@ -35,7 +41,6 @@ static async Task<int> RunScan(string[] args)
     var o = Options.Parse(args);
 
     IFundedOracle oracle;
-    EsploraClient? enrich = null;
     var apiClient = new EsploraClient();
 
     if (o.Oracle == "offline")
@@ -43,22 +48,24 @@ static async Task<int> RunScan(string[] args)
         if (o.SetFile is null) { Console.Error.WriteLine("offline mode requires --set FILE"); return 2; }
         if (!File.Exists(o.SetFile)) { Console.Error.WriteLine($"set file not found: {o.SetFile}"); return 2; }
         oracle = OfflineSetOracle.FromFile(o.SetFile);
-        if (o.Enrich) enrich = apiClient;
     }
     else
     {
         oracle = new EsploraApiOracle(apiClient);
     }
 
+    // The few hits are always deep-analyzed (funders, sweepers, dates) unless disabled.
+    EsploraClient? enrich = o.NoEnrich ? null : apiClient;
+
     var patternType = $"repeated-word/{o.WordCount}" + (o.FirstOnly ? "/first-completion" : "");
-    using var findings = new FindingsWriter(o.OutFile);
+    using var findings = new FindingsWriter(o.OutFile, o.Append);
 
     Console.WriteLine("ill-advised-private-keys — weak key scanner");
     Console.WriteLine($"pattern     : {patternType}");
     Console.WriteLine($"words       : [{o.FromWord}, {o.ToWord})");
     Console.WriteLine($"detection   : {oracle.Describe()}");
-    Console.WriteLine($"enrichment  : {(enrich is null ? "none" : "esplora API (hits only)")}");
-    Console.WriteLine($"out         : {findings.Path}");
+    Console.WriteLine($"enrichment  : {(enrich is null ? "none" : "esplora API (hits only: funders/sweepers/dates)")}");
+    Console.WriteLine($"out         : {findings.Path}{(o.Append ? " (append)" : "")}");
     Console.WriteLine(new string('=', 72));
 
     var keys = RepeatedWordGenerator.All(o.WordCount, o.FromWord, o.ToWord, o.FirstOnly);
@@ -80,12 +87,12 @@ static async Task<int> RunScan(string[] args)
 
 file sealed record Options(
     int WordCount, int FromWord, int ToWord, bool FirstOnly,
-    string Oracle, string? SetFile, int Indices, bool Enrich, string OutFile)
+    string Oracle, string? SetFile, int Indices, bool NoEnrich, bool Append, string OutFile)
 {
     public static Options Parse(string[] args)
     {
         int wordCount = 12, indices = 1, words = 2048, from = 0, to = -1;
-        bool firstOnly = false, enrich = false;
+        bool firstOnly = false, noEnrich = false, append = false;
         string oracle = "offline", outFile = Path.Combine(AppContext.BaseDirectory, "out", "scan.findings.jsonl");
         string? set = null;
 
@@ -101,7 +108,8 @@ file sealed record Options(
                 case "--oracle": oracle = args[++i]; break;
                 case "--set": set = args[++i]; break;
                 case "--indices": indices = int.Parse(args[++i]); break;
-                case "--enrich": enrich = true; break;
+                case "--no-enrich": noEnrich = true; break;
+                case "--append": append = true; break;
                 case "--out": outFile = args[++i]; break;
                 default: throw new ArgumentException($"unknown option: {args[i]}");
             }
@@ -109,7 +117,55 @@ file sealed record Options(
 
         int fromWord = from;
         int toWord = to >= 0 ? to : Math.Min(2048, from + words);
-        return new Options(wordCount, fromWord, toWord, firstOnly, oracle, set, indices, enrich, outFile);
+        return new Options(wordCount, fromWord, toWord, firstOnly, oracle, set, indices, noEnrich, append, outFile);
+    }
+}
+
+file static class Analyze
+{
+    public static int Run(string path)
+    {
+        if (!File.Exists(path)) { Console.Error.WriteLine($"not found: {path}"); return 2; }
+
+        var findings = File.ReadLines(path)
+            .Where(l => l.Trim().Length > 0)
+            .Select(l => System.Text.Json.JsonSerializer.Deserialize<Finding>(l)!)
+            .ToList();
+
+        if (findings.Count == 0) { Console.WriteLine("no findings."); return 0; }
+
+        // sweeper address -> distinct compromised addresses it drained
+        var sweeperReach = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        var funderReach = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (var f in findings)
+        {
+            foreach (var s in f.Sweepers)
+                (sweeperReach.TryGetValue(s, out var set) ? set : sweeperReach[s] = new(StringComparer.Ordinal)).Add(f.Address);
+            foreach (var fu in f.Funders)
+                (funderReach.TryGetValue(fu, out var set) ? set : funderReach[fu] = new(StringComparer.Ordinal)).Add(f.Address);
+        }
+
+        var weakAddrs = findings.Select(f => f.Address).Distinct().Count();
+        long received = findings.Sum(f => f.TotalReceivedSats);
+        var dates = findings.Where(f => f.FirstSeen is not null).Select(f => f.FirstSeen!).ToList();
+        var lasts = findings.Where(f => f.LastSeen is not null).Select(f => f.LastSeen!).ToList();
+
+        Console.WriteLine("ill-advised-private-keys — findings analysis");
+        Console.WriteLine(new string('=', 72));
+        Console.WriteLine($"findings              : {findings.Count}");
+        Console.WriteLine($"distinct weak addrs   : {weakAddrs}");
+        Console.WriteLine($"total received        : {Format.Btc(received)}");
+        if (dates.Count > 0)
+            Console.WriteLine($"activity window       : {dates.Min()}  ..  {lasts.Max()}");
+        Console.WriteLine($"distinct funders      : {funderReach.Count}");
+        Console.WriteLine($"distinct sweepers     : {sweeperReach.Count}");
+        Console.WriteLine();
+
+        Console.WriteLine("top sweepers (drainer set — by # of weak addresses drained):");
+        foreach (var (addr, set) in sweeperReach.OrderByDescending(kv => kv.Value.Count).Take(15))
+            Console.WriteLine($"  {set.Count,4}  {addr}");
+
+        return 0;
     }
 }
 
@@ -136,26 +192,23 @@ file static class Control
         foreach (var d in Bip39Deriver.Derive(AbandonVector, Network.Main, count: 1))
         {
             scanned++;
-            FundingInfo f;
-            try { f = await oracle.CheckAsync(d.Address); }
+            AddressActivity a;
+            try { a = await oracle.AnalyzeAsync(d.Address); }
             catch (Exception ex) { Console.WriteLine($"[ERROR ] {d.Kind}: {ex.Message}\n"); continue; }
 
-            var tag = f.EverFunded ? (f.BalanceSats > 0 ? "[LIVE  ]" : "[FUNDED]") : "[clean ]";
+            var tag = a.EverFunded ? (a.BalanceSats > 0 ? "[LIVE  ]" : "[FUNDED]") : "[clean ]";
             Console.WriteLine($"{tag} {d.Kind}");
             Console.WriteLine($"    weak key : {AbandonVector}");
             Console.WriteLine($"    address  : {d.Address}");
             Console.WriteLine($"    path     : {d.Path}");
-            Console.WriteLine($"    activity : {Format.Activity(f)}");
+            Console.WriteLine($"    activity : {Format.Activity(a)}");
             Console.WriteLine($"    explorer : {Explorers.Address(d.Address)}");
             Console.WriteLine();
 
-            if (f.EverFunded)
+            if (a.EverFunded)
             {
                 funded++;
-                findings.Write(new Finding(
-                    PatternType, AbandonVector, d.Kind, d.Path, "bitcoin", d.Address,
-                    f.EverFunded, f.TxCount, f.TotalReceivedSats, f.BalanceSats,
-                    Explorers.Address(d.Address)));
+                findings.Write(Finding.From(PatternType, AbandonVector, d, a));
             }
             await Task.Delay(400);
         }
