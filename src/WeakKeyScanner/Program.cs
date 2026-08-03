@@ -64,12 +64,13 @@ static async Task<int> RunScan(string[] args)
     Console.WriteLine($"pattern     : {patternType}");
     Console.WriteLine($"words       : [{o.FromWord}, {o.ToWord})");
     Console.WriteLine($"detection   : {oracle.Describe()}");
+    Console.WriteLine($"threads     : {(o.Threads > 0 ? o.Threads : Environment.ProcessorCount)}");
     Console.WriteLine($"enrichment  : {(enrich is null ? "none" : "esplora API (hits only: funders/sweepers/dates)")}");
     Console.WriteLine($"out         : {findings.Path}{(o.Append ? " (append)" : "")}");
     Console.WriteLine(new string('=', 72));
 
     var keys = RepeatedWordGenerator.All(o.WordCount, o.FromWord, o.ToWord, o.FirstOnly);
-    var scanner = new Scanner(oracle, enrich, findings, Network.Main, o.Indices);
+    var scanner = new Scanner(oracle, enrich, findings, Network.Main, o.Indices, o.Threads);
 
     using var cts = new CancellationTokenSource();
     Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
@@ -87,11 +88,11 @@ static async Task<int> RunScan(string[] args)
 
 file sealed record Options(
     int WordCount, int FromWord, int ToWord, bool FirstOnly,
-    string Oracle, string? SetFile, int Indices, bool NoEnrich, bool Append, string OutFile)
+    string Oracle, string? SetFile, int Indices, int Threads, bool NoEnrich, bool Append, string OutFile)
 {
     public static Options Parse(string[] args)
     {
-        int wordCount = 12, indices = 1, words = 2048, from = 0, to = -1;
+        int wordCount = 12, indices = 1, words = 2048, from = 0, to = -1, threads = 0;
         bool firstOnly = false, noEnrich = false, append = false;
         string oracle = "offline", outFile = Path.Combine(AppContext.BaseDirectory, "out", "scan.findings.jsonl");
         string? set = null;
@@ -108,6 +109,7 @@ file sealed record Options(
                 case "--oracle": oracle = args[++i]; break;
                 case "--set": set = args[++i]; break;
                 case "--indices": indices = int.Parse(args[++i]); break;
+                case "--threads": threads = int.Parse(args[++i]); break;
                 case "--no-enrich": noEnrich = true; break;
                 case "--append": append = true; break;
                 case "--out": outFile = args[++i]; break;
@@ -117,7 +119,7 @@ file sealed record Options(
 
         int fromWord = from;
         int toWord = to >= 0 ? to : Math.Min(2048, from + words);
-        return new Options(wordCount, fromWord, toWord, firstOnly, oracle, set, indices, noEnrich, append, outFile);
+        return new Options(wordCount, fromWord, toWord, firstOnly, oracle, set, indices, threads, noEnrich, append, outFile);
     }
 }
 
