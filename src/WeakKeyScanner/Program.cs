@@ -4,6 +4,7 @@ using WeakKeyScanner;
 // ill-advised-private-keys — weak key scanner
 //
 //   (no args) | control      Positive-control test: the zero-entropy vector.
+//   selftest --set FILE      Prove the offline oracle can emit a true positive.
 //   scan [options]           Enumerate repeated-word candidates and check funding.
 //
 // scan options:
@@ -38,8 +39,93 @@ if (args[0] == "brainscan")
     return await RunBrainScan(args);
 }
 
+if (args[0] == "selftest")
+{
+    return RunSelfTest(args);
+}
+
 Console.Error.WriteLine($"unknown command: {args[0]}");
 return 2;
+
+// selftest --set FILE
+//
+// A null result from the offline oracle is ambiguous: the space may be swept clean,
+// OR the matcher may be silently blind (e.g. our derived address strings don't match
+// the set's string form, so every real funded address misses). This proves the
+// matcher can produce a true positive, so an all-null scan means "clean", not "blind":
+//   1. derivation  — privkey=1 through the real NBitcoin path == the documented address
+//   2. format      — for each address type in the set, NBitcoin's canonical form is
+//                    byte-identical to the set's form and hits the matcher
+//   3. matcher     — a known-present token hits; a garbage string misses
+static int RunSelfTest(string[] args)
+{
+    string? set = null;
+    for (int i = 1; i < args.Length; i++)
+    {
+        switch (args[i])
+        {
+            case "--set": set = args[++i]; break;
+            default: Console.Error.WriteLine($"unknown option: {args[i]}"); return 2;
+        }
+    }
+    if (set is null || !File.Exists(set)) { Console.Error.WriteLine("selftest requires --set FILE"); return 2; }
+
+    int failures = 0;
+    void Check(bool ok, string label)
+    {
+        Console.WriteLine($"  [{(ok ? "PASS" : "FAIL")}] {label}");
+        if (!ok) failures++;
+    }
+
+    Console.WriteLine("ill-advised-private-keys - offline oracle self-test");
+    Console.WriteLine(new string('=', 72));
+
+    // 1. Derivation correctness, independent of any set: privkey = 1 has a single,
+    //    universally-documented pair of P2PKH addresses. If our encoder is right,
+    //    both fall out of the same Key -> PubKey -> GetAddress path the scanner uses.
+    Console.WriteLine("derivation (privkey=1, canonical ground truth):");
+    byte[] one = new byte[32]; one[31] = 1;
+    string dc = new Key(one, -1, fCompressedIn: true).PubKey.GetAddress(ScriptPubKeyType.Legacy, Network.Main).ToString();
+    string du = new Key(one, -1, fCompressedIn: false).PubKey.GetAddress(ScriptPubKeyType.Legacy, Network.Main).ToString();
+    Check(dc == "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH", $"compressed   -> {dc}");
+    Check(du == "1EHNa6Q4Jz2uvNExL497mE43ikXhwF6kZm", $"uncompressed -> {du}");
+
+    Console.WriteLine($"loading set: {set}");
+    var (oracle, first, samples) = OfflineSetOracle.LoadWithSamples(set);
+    Console.WriteLine($"{oracle.Describe()}");
+
+    // 2. Format equivalence: for every address family present in the set, prove that
+    //    NBitcoin's canonical string form (exactly what our derivation emits) matches
+    //    the set's stored form byte-for-byte AND registers as a hit. A bech32-casing
+    //    or encoding mismatch here is precisely the silent-miss failure we fear.
+    Console.WriteLine("format equivalence (NBitcoin canonical form == set form, per type):");
+    foreach (var (type, sample) in samples.OrderBy(kv => kv.Key))
+    {
+        string canon;
+        try { canon = BitcoinAddress.Create(sample, Network.Main).ToString(); }
+        catch { Check(false, $"{type}: NBitcoin cannot parse set form ({sample})"); continue; }
+        Check(canon == sample && oracle.Contains(canon), $"{type}: {sample}");
+    }
+
+    // 3. Matcher sanity: a token we know is in the set must hit; a token we know is
+    //    not must miss. Guards against a matcher that is blind or matches everything.
+    Console.WriteLine("matcher sanity:");
+    if (first is null)
+    {
+        Check(false, "no recognizable address found in set (cannot test membership)");
+    }
+    else
+    {
+        Check(oracle.Contains(first), $"known-present address hits ({first})");
+        Check(!oracle.Contains("zzz-not-a-real-address-" + first), "known-absent address misses");
+    }
+
+    Console.WriteLine(new string('=', 72));
+    Console.WriteLine(failures == 0
+        ? "SELF-TEST PASSED - an all-null offline scan means the space is clean, not blind."
+        : $"SELF-TEST FAILED ({failures}) - offline null results are NOT trustworthy until fixed.");
+    return failures == 0 ? 0 : 1;
+}
 
 // brainscan --wordlist FILE [--oracle offline|api] [--set FILE] [--threads N]
 //           [--no-enrich] [--out FILE]

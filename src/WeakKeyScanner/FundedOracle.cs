@@ -36,6 +36,45 @@ public sealed class OfflineSetOracle : IFundedOracle
         return new OfflineSetOracle(hashes);
     }
 
+    /// <summary>
+    /// Like <see cref="FromFile"/>, but the single pass also captures the first
+    /// real address of each recognized type and the very first token overall. The
+    /// self-test uses these as ground-truth positives to prove the offline matcher
+    /// can actually emit a hit (an all-null result is otherwise indistinguishable
+    /// from a silently-broken matcher).
+    /// </summary>
+    public static (OfflineSetOracle Oracle, string? First, IReadOnlyDictionary<string, string> Samples) LoadWithSamples(string path)
+    {
+        var hashes = new HashSet<ulong>();
+        var samples = new Dictionary<string, string>();
+        string? first = null;
+        foreach (var line in File.ReadLines(path))
+        {
+            var token = FirstToken(line);
+            if (token.Length == 0 || token[0] == '#') continue;
+            hashes.Add(Hash(token));
+
+            var type = AddressType(token);
+            if (type is null) continue;      // header row or unrecognized prefix
+            first ??= token;
+            if (!samples.ContainsKey(type)) samples[type] = token;
+        }
+        return (new OfflineSetOracle(hashes), first, samples);
+    }
+
+    /// <summary>Membership test against an already-parsed address string.</summary>
+    public bool Contains(string address) => _hashes.Contains(Hash(address));
+
+    /// <summary>The address families the scanner derives, keyed by their canonical prefix.</summary>
+    private static string? AddressType(string a) => a switch
+    {
+        _ when a.StartsWith("bc1p", StringComparison.Ordinal) => "p2tr    (bc1p)",
+        _ when a.StartsWith("bc1q", StringComparison.Ordinal) => "segwit  (bc1q)",
+        _ when a.Length > 0 && a[0] == '1' => "p2pkh   (1)",
+        _ when a.Length > 0 && a[0] == '3' => "p2sh    (3)",
+        _ => null,
+    };
+
     public Task<FundingInfo?> LookupAsync(string address, CancellationToken ct = default)
         => Task.FromResult(_hashes.Contains(Hash(address)) ? new FundingInfo(true, 0, 0, 0) : (FundingInfo?)null);
 
