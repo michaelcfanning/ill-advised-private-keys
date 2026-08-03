@@ -33,8 +33,77 @@ if (args[0] == "analyze")
     return Analyze.Run(args[1]);
 }
 
+if (args[0] == "brainscan")
+{
+    return await RunBrainScan(args);
+}
+
 Console.Error.WriteLine($"unknown command: {args[0]}");
 return 2;
+
+// brainscan --wordlist FILE [--oracle offline|api] [--set FILE] [--threads N]
+//           [--no-enrich] [--out FILE]
+static async Task<int> RunBrainScan(string[] args)
+{
+    string? wordlist = null, set = null;
+    string oracleKind = "offline";
+    string outFile = Path.Combine(AppContext.BaseDirectory, "out", "brain.findings.jsonl");
+    int threads = 0;
+    bool noEnrich = false;
+
+    for (int i = 1; i < args.Length; i++)
+    {
+        switch (args[i])
+        {
+            case "--wordlist": wordlist = args[++i]; break;
+            case "--oracle": oracleKind = args[++i]; break;
+            case "--set": set = args[++i]; break;
+            case "--threads": threads = int.Parse(args[++i]); break;
+            case "--no-enrich": noEnrich = true; break;
+            case "--out": outFile = args[++i]; break;
+            default: Console.Error.WriteLine($"unknown option: {args[i]}"); return 2;
+        }
+    }
+    if (wordlist is null || !File.Exists(wordlist)) { Console.Error.WriteLine("brainscan requires --wordlist FILE"); return 2; }
+
+    var apiClient = new EsploraClient();
+    IFundedOracle oracle;
+    if (oracleKind == "offline")
+    {
+        if (set is null || !File.Exists(set)) { Console.Error.WriteLine("offline mode requires --set FILE"); return 2; }
+        oracle = OfflineSetOracle.FromFile(set);
+    }
+    else
+    {
+        oracle = new EsploraApiOracle(apiClient);
+    }
+    EsploraClient? enrich = noEnrich ? null : apiClient;
+
+    using var findings = new FindingsWriter(outFile);
+    Console.WriteLine("ill-advised-private-keys — brainwallet scan");
+    Console.WriteLine($"wordlist    : {wordlist}");
+    Console.WriteLine($"detection   : {oracle.Describe()}");
+    Console.WriteLine($"threads     : {(threads > 0 ? threads : Environment.ProcessorCount)}");
+    Console.WriteLine($"out         : {findings.Path}");
+    Console.WriteLine(new string('=', 72));
+
+    // Stream the wordlist so multi-GB files never materialize.
+    IEnumerable<string> Passwords() => File.ReadLines(wordlist).Where(l => l.Length > 0);
+
+    var scanner = new BrainScanner(oracle, enrich, findings, Network.Main, threads);
+    using var cts = new CancellationTokenSource();
+    Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
+
+    ScanStats s;
+    try { s = await scanner.RunAsync(Passwords(), "brainwallet/sha256", cts.Token); }
+    catch (OperationCanceledException) { Console.WriteLine("\n[cancelled]"); return 130; }
+    finally { apiClient.Dispose(); }
+
+    Console.WriteLine(new string('=', 72));
+    Console.WriteLine($"done: {s.Candidates:N0} passwords | {s.Addresses:N0} addresses | {s.Hits} hits | {s.Elapsed.TotalSeconds:N1}s");
+    Console.WriteLine($"findings: {findings.Path}");
+    return 0;
+}
 
 static async Task<int> RunScan(string[] args)
 {
