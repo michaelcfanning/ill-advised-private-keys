@@ -94,10 +94,12 @@ We never adjudicate any of this, because we move nothing.
 1. **We touch no funds.** No transaction is signed with a key we did not generate
    — no spends, sweeps, dust, on-chain warnings, or recovery-into-escrow.
 
-2. **The tool cannot sign.** It links no transaction-signing capability; it
-   derives keys and addresses and queries balances. The code is open for audit and
-   we invite it — transparency is the safeguard, not a claim that a fork could not
-   add signing.
+2. **The tool cannot move funds.** No code path in this application constructs,
+   signs, or broadcasts a transaction; it derives keys and addresses and queries
+   balances. It depends on a general Bitcoin library (NBitcoin, MIT) whose signing
+   code we never call — the guarantee is about our own code paths, which are open
+   for audit. Transparency is the safeguard, not a claim that a fork could not add
+   signing.
 
 3. **We observe only public data.** We read public chain state, access no private
    system, and respect the rate limits and terms of any API we query.

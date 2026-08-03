@@ -1,0 +1,11 @@
+# Build output
+bin/
+obj/
+
+# Scan output — may contain key material for compromised wallets; never commit
+out/
+*.findings.jsonl
+*.findings.json
+
+# Local funded-address sets (large, derived data)
+*.funded.txt
