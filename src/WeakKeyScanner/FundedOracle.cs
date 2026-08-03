@@ -8,30 +8,52 @@ public interface IFundedOracle
 }
 
 /// <summary>
-/// Primary scan path: an in-memory set of ever-funded addresses. Detection is a
-/// local membership test — no network, no rate limit, nothing leaves the machine.
-/// A hit returns a marker; details are filled by a separate enrichment call.
+/// Primary scan path: an in-memory set of funded addresses. Detection is a local
+/// membership test — no network, no rate limit, nothing leaves the machine.
+///
+/// Addresses are stored as 64-bit FNV-1a hashes so tens of millions fit in ~1 GB.
+/// A 64-bit collision over a query is astronomically unlikely, and any hit is
+/// re-verified against live chain data during enrichment, so a stray collision is
+/// dropped rather than reported. Accepts plain address-per-line files or TSV
+/// (address&lt;tab&gt;balance, e.g. Blockchair/Loyce lists) — the first token is used.
 /// </summary>
 public sealed class OfflineSetOracle : IFundedOracle
 {
-    private readonly HashSet<string> _set;
-    public int Count => _set.Count;
+    private readonly HashSet<ulong> _hashes;
+    public int Count => _hashes.Count;
 
-    public OfflineSetOracle(IEnumerable<string> addresses)
-        => _set = new HashSet<string>(addresses, StringComparer.Ordinal);
+    private OfflineSetOracle(HashSet<ulong> hashes) => _hashes = hashes;
 
     public static OfflineSetOracle FromFile(string path)
     {
-        var addresses = File.ReadLines(path)
-            .Select(l => l.Trim())
-            .Where(l => l.Length > 0 && l[0] != '#');
-        return new OfflineSetOracle(addresses);
+        var hashes = new HashSet<ulong>();
+        foreach (var line in File.ReadLines(path))
+        {
+            var token = FirstToken(line);
+            if (token.Length == 0 || token[0] == '#') continue;
+            hashes.Add(Hash(token));
+        }
+        return new OfflineSetOracle(hashes);
     }
 
     public Task<FundingInfo?> LookupAsync(string address, CancellationToken ct = default)
-        => Task.FromResult(_set.Contains(address) ? new FundingInfo(true, 0, 0, 0) : (FundingInfo?)null);
+        => Task.FromResult(_hashes.Contains(Hash(address)) ? new FundingInfo(true, 0, 0, 0) : (FundingInfo?)null);
 
-    public string Describe() => $"offline set ({_set.Count:N0} addresses)";
+    public string Describe() => $"offline set ({_hashes.Count:N0} address hashes, 64-bit)";
+
+    private static string FirstToken(string line)
+    {
+        var span = line.AsSpan().Trim();
+        int cut = span.IndexOfAny(' ', '\t');
+        return (cut < 0 ? span : span[..cut]).ToString();
+    }
+
+    private static ulong Hash(string s)
+    {
+        ulong h = 1469598103934665603UL; // FNV-1a offset basis
+        foreach (char c in s) { h ^= (byte)c; h *= 1099511628211UL; }
+        return h;
+    }
 }
 
 /// <summary>

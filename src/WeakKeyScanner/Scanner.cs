@@ -46,18 +46,19 @@ public sealed class Scanner
                 var info = await _oracle.LookupAsync(d.Address, ct);
                 if (info is null) continue;
 
-                hits++;
                 AddressActivity a;
                 if (_enrich is not null)
                 {
                     try { a = await _enrich.AnalyzeAsync(d.Address, ct); }
                     catch { a = Marker(info.Value); }
+                    if (!a.EverFunded) continue; // hashed-set collision: not actually funded
                 }
                 else
                 {
                     a = Marker(info.Value);
                 }
 
+                hits++;
                 _findings.Write(Finding.From(patternType, wk.Mnemonic, d, a));
                 Console.WriteLine($"  >>> HIT  {d.Kind}  {d.Address}");
                 Console.WriteLine($"      key : {wk.Mnemonic}");
