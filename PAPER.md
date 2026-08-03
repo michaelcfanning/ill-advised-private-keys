@@ -57,7 +57,11 @@ Resubmission ladder if FC'27 rejects (submit to the first with an open deadline)
 
 2. **WEIS (Workshop on the Economics of Information Security).** The economics and
    defense-ROI framing is squarely on-topic; friendly to independent researchers.
-   2027 dates unannounced as of Aug 2026 — watch for the CFP.
+   Verified Aug 2026: no WEIS 2027 CFP/host/portal yet. WEIS 2026 (25th, UC
+   Berkeley, 2–3 Jun 2026, deadline 1 Feb 2026) has passed; submissions run through
+   EasyChair. On the usual cadence the WEIS 2027 CFP should appear late 2026 with a
+   ~Feb 2027 deadline — i.e. *after* FC'27 notification (5 Nov 2026), so its portal
+   would plausibly be open in time to serve as the first resubmission rung.
 3. **ACM AFT (Advances in Financial Technologies).** Strong crypto/measurement
    fit; this cycle's deadline already missed — a next-cycle option.
 4. **Reach — USENIX Security / IEEE S&P / CCS / NDSS.** Competitive but open to
