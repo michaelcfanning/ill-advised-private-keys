@@ -36,24 +36,33 @@ statistics before disclosing specifics.
 
 ## Target venues
 
-Ranked by fit, not prestige:
+**Decision (2026-08-03): FC'27 is the target.** ACM AFT's cycle deadline has
+already passed, and WEIS 2027 has no announced dates yet, so FC'27 is both the
+best-fit venue (direct FC16 lineage) and the one with a live, hittable deadline.
+FC forbids concurrent submission, so this is a single-venue submit; if rejected we
+resubmit to the next venue below whose deadline is then open. Preprint timing
+stays subject to the aggregate-first disclosure posture.
 
-1. **Financial Cryptography and Data Security (FC).** The direct lineage — FC16 is
-   the paper we extend. **Primary target: FC'27** (Accra Beach Hotel, Barbados,
-   8–12 Feb 2027). Firm paper deadline **17 Sep 2026, 23:59 AoE**; notification
+1. **Financial Cryptography and Data Security — FC'27 (TARGET).** The direct
+   lineage — FC16 is the paper we extend. Accra Beach Hotel, Barbados,
+   8–12 Feb 2027. Firm paper deadline **17 Sep 2026, 23:59 AoE**; notification
    5 Nov 2026; final pre-proceedings 22 Dec 2026. (Associated workshops have an
    earlier 1 Sep 2026 deadline — a fallback if the main measurement isn't ready.)
    Categories: **Regular 15 pp**, **Short 8 pp** (title prefixed "Short Paper:"),
    **SoK 20 pp** (prefixed "SoK:"), all excluding references/appendices. Mandatory
    anonymization (no names, affiliations, acknowledgments, or obvious references),
    COI disclosure, and a no-concurrent-submission attestation.
+
+Resubmission ladder if FC'27 rejects (submit to the first with an open deadline):
+
 2. **WEIS (Workshop on the Economics of Information Security).** The economics and
    defense-ROI framing is squarely on-topic; friendly to independent researchers.
-3. **ACM AFT (Advances in Financial Technologies).** Strong crypto/measurement fit.
+   2027 dates unannounced as of Aug 2026 — watch for the CFP.
+3. **ACM AFT (Advances in Financial Technologies).** Strong crypto/measurement
+   fit; this cycle's deadline already missed — a next-cycle option.
 4. **Reach — USENIX Security / IEEE S&P / CCS / NDSS.** Competitive but open to
-   independents; USENIX publishes substantial measurement work. Consider after an
-   FC/WEIS-hardened draft.
-5. **Preprint first — IACR ePrint and/or arXiv (cs.CR),** to timestamp and gather
+   independents; USENIX publishes substantial measurement work.
+5. **Preprint — IACR ePrint and/or arXiv (cs.CR),** to timestamp and gather
    feedback, subject to the disclosure posture (aggregate first, no keys).
 
 ## Logistics for an independent submitter
@@ -141,7 +150,8 @@ poisoned-address list grounded in the measurement.
   as forthcoming; (b) full **Regular paper** only if the index finishes and the
   economic headline lands in time; (c) an FC **workshop** (1 Sep deadline) as a
   venue for the in-progress measurement. Decide once the node's ETA is known.
-- Primary venue: FC'27 (above) vs. WEIS (later deadline, more economics runway).
+- Venue is decided (FC'27); the open sub-decision is Regular vs. Short vs. workshop,
+  driven by whether the node-gated arrival-rate headline lands before 17 Sep 2026.
 - Solo vs. one academic co-author.
 - Preprint timing vs. disclosure posture (aggregate-first constraint).
 - How much of the poisoned-address list is publishable vs. routed through
