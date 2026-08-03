@@ -66,11 +66,14 @@ pattern in the words are two views of one thing: all-zero entropy is
 `abandon abandon ... about`, which is why that phrase is the canonical test
 vector.
 
-They differ in period. Word patterns have an 11-bit period and are visible when
-read as words. Byte patterns have an 8-bit period and are visible only in hex:
-`0xAA`-repeated entropy produces twelve unremarkable, unrelated English words. We
-expect this class to be the most under-covered — weakest, yet least likely to
-look weak, and invisible to any word-repetition heuristic.
+They differ in period. Word patterns have an 11-bit period and read as words;
+byte patterns have an 8-bit period and do not — `0xAA`-repeated entropy produces
+twelve unremarkable, unrelated English words. In source, byte patterns are
+authored in many forms besides hex — char arrays like `['D','E','A','D']`, escape
+sequences, byte-string literals — which widens the human construction surface and
+means a code detector must normalize representations before matching. We expect
+this class to be the most under-covered: weakest, yet least likely to look weak,
+and invisible to any word-repetition heuristic.
 
 ### Collision and ownership
 

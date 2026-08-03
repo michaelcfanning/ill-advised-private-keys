@@ -99,9 +99,16 @@ light up on these, the pipeline is broken.
 
 ## F5 — ASCII payloads
 
-A passphrase written into the byte array directly rather than hashed: repeated to
+A string written into the byte array directly rather than hashed: repeated to
 fill, zero-padded, or space-padded. Distinct from a brainwallet, which hashes.
-Draw from the same wordlists the brainwallet work used.
+Draw from the brainwallet wordlists.
+
+A memorable token has two byte readings a human might use, and both are
+enumerable: as hex (`DEAD` → `0xDE 0xAD`, family F2) and as characters
+(`['D','E','A','D']` → `0x44 0x45 0x41 0x44`). Enumerate each token under both. In
+source these literals appear in many syntaxes — char arrays, `\xNN` / octal /
+`\u` escapes, byte strings, base64 or base58 — which a code detector must
+normalize before matching.
 
 ## F6 — Structured decimal
 
