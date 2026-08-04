@@ -1,4 +1,6 @@
-# DRAFT — The BIP-39 Brain Drain (working draft)
+# BIP-39 and the Bad Seeds — Into My Arms
+
+*Measuring Sweeping and Loss in the Weak-Mnemonic Key Space.* Working draft.
 
 Content-first draft in markdown; port to the USENIX LaTeX template (13 pp body,
 anonymized) before submission. Structure follows [../PAPER.md](../PAPER.md);

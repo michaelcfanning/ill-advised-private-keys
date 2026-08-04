@@ -83,3 +83,21 @@ Milk Sad #16, Zhou, Lopp, Guiar, brain2bip, vuke, wallet SoKs, Eleshin). Migrate
 all footnote citations to Pandoc `[@key]` against references.bib. Installed pandoc
 3.10 and ran a trial `--citeproc` conversion: 0 unresolved-citation warnings,
 bibliography renders — the md→LaTeX pipeline is proven.
+
+### 2026-08-04 · `ai+human` · Working title (human-proposed)
+
+**Prompt (verbatim):**
+
+> hm ok how's this BIP39 and the Bad Seeds: Into My Arms.
+
+> yes set it and of course add the hyphen! commit these edits as 'human proposed'?
+
+**Summary:** Set the working title. **Human-authored content:** the title concept
+"BIP-39 and the Bad Seeds — Into My Arms" (Michael's, proposed in conversation) — a
+riff on Nick Cave and the Bad Seeds with "Into My Arms" read as the swept funds
+falling into the drainer's arms. **AI-authored, human-refined:** the descriptive
+subtitle "Measuring Sweeping and Loss in the Weak-Mnemonic Key Space" — AI proposed
+the base phrasing (incl. "Weak-Mnemonic Key Space"); Michael reordered it to
+sweeping-first. The mechanical edits to `PAPER.md`/`DRAFT.md` are AI. Also documented the human-proposed-content pattern
+in `AUTHORSHIP.md`. The tagline "your crypto swept into my arms because of your bad
+seed" (Michael's) is stashed for the future `badseed` repo README.

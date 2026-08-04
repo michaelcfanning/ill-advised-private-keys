@@ -48,6 +48,15 @@ committed change and nothing is silently omitted from the intent. The prompt is
 bound immutably to the diff it produced, which is the tightest possible record of
 input → output.
 
+## Human-proposed content
+
+Sometimes the human authors the content — a title, a sentence, a turn of phrase —
+in conversation, and the AI only transcribes it into the files. That is a genuinely
+mixed commit: tag it `Author-Role: ai+human`, quote the human's proposal verbatim
+in the body, and say plainly which parts are the human's and which the AI added
+(e.g. a descriptive subtitle appended to a human-proposed title). The creative
+content is attributed to the human even though the AI performed the mechanical edit.
+
 ## Git author of record
 
 To keep accountability clear, the human (Michael C. Fanning) remains the git
