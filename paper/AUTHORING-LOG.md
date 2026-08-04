@@ -98,6 +98,27 @@ riff on Nick Cave and the Bad Seeds with "Into My Arms" read as the swept funds
 falling into the drainer's arms. **AI-authored, human-refined:** the descriptive
 subtitle "Measuring Sweeping and Loss in the Weak-Mnemonic Key Space" — AI proposed
 the base phrasing (incl. "Weak-Mnemonic Key Space"); Michael reordered it to
-sweeping-first. The mechanical edits to `PAPER.md`/`DRAFT.md` are AI. Also documented the human-proposed-content pattern
+sweeping-first. The mechanical edits to `PAPER.md`/`DRAFT.md` are AI.
+
+### 2026-08-04 · `ai` · Interim node-walk results into §7 + ledger (autonomous)
+
+**Prompt (verbatim):**
+
+> please keep progressing through analyzing the complete chain. please complete any
+> utilities work for that processing. please update the paper on a branch in our
+> repo. best wishes. [...] if email is an option, drop a note to
+> michael.c.fanning@outlook.com
+
+**Summary:** Autonomous, on branch `feat/nodewalk-ever-funded` while the user is
+away. The combined `nodewalk [0,450000]` (mnemonic-pattern union, index 0) finished:
+4 funded addresses, all `repeat` family, 100% swept. Ran the new `analyze`
+(per-family + sweep-latency). Interim classification: 2 canonical zero-entropy test
+vectors → deliberate (0.358 BTC); 2 repeated-single-word mnemonics → victim (0.032
+BTC); sweep-latency median 1 d (0 d for 2015–16 non-test); 13 sweepers. Surfaced and
+fixed a methodology gap (24-word `abandon…art` vector was scoring as a 0.35 BTC
+victim; denylisted it). Added a PRELIMINARY, fully-caveated interim block to §7 and
+INTERIM rows to the numbers ledger. Modern era (2016–2026) still processing via the
+IBD-watcher-triggered tail; complete-chain analysis + USD utility to follow, then a
+push notification. No merge to main. Also documented the human-proposed-content pattern
 in `AUTHORSHIP.md`. The tagline "your crypto swept into my arms because of your bad
 seed" (Michael's) is stashed for the future `badseed` repo README.

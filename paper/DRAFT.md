@@ -194,6 +194,32 @@ bounds; sweeper population; the arrival-rate series. The classifier is implement
 
 ## 7. Results
 
+> **Interim node-walk result — PRELIMINARY (this project, branch, in progress).**
+> Scope: the mnemonic-pattern union (repeat/forward/backward/stride, 12+24 word),
+> address index 0, over block heights 0–450,000 (2009–Dec 2016); the modern era
+> (2016–2026) is still processing. Source: our `nodewalk` ever-funded + sweep index
+> over a local fully-synced bitcoind — not a third-party dump — validated against
+> Blockchair on the first-ever Bitcoin transaction (§5). BTC-denominated;
+> USD-at-time remains node-gated.
+>
+> - **Ever-funded:** 4 distinct funded addresses, **all in the `repeat` family**
+>   (forward/backward/stride: 0 funded in this era), **100% swept** (no residual
+>   balance) — consistent with continuous draining.
+> - **Classification:** 2 are canonical zero-entropy test vectors
+>   (`abandon×11+about`, `abandon×23+art`) → deliberate (0.358 BTC); 2 are
+>   repeated-single-word mnemonics (`all×12`, `life×12`) → victim (**0.032 BTC**).
+>   The 24-word test vector alone held 0.35 BTC and would have dominated a naive
+>   "victim" total — the famous-key trap (§7.4); it was moved to the denylist on
+>   discovery.
+> - **Sweep latency:** median 1 day overall; the 2015–2016 non-test addresses were
+>   swept **within 0–1 day** (same/next-day drain).
+> - **Drainers:** 13 distinct sweeper addresses across 9 sweep events.
+> - **Limitations (interim):** tiny N at index 0 through 2016; the node walk does
+>   not yet capture funders (reported funders = 0 by construction, not a true zero);
+>   victim-vs-deliberate for repeated-single-word mnemonics is genuinely ambiguous
+>   and pending denylist/behavioral curation. Numbers will change as the modern
+>   era and higher address indices are processed.
+
 ### 7.1 The current-balance space is swept clean [HAVE]
 - Repeated-word LIVE scan, Loyce 59M current-balance set, full 12+24-word space,
   indices 0–19 (22.3M addresses): **0 live hits**.
@@ -391,8 +417,11 @@ section is populated automatically and left empty in the source.
 | CrackStation passwords scanned | 63,941,068 | HAVE | out/brain.scan.log |
 | CrackStation addresses / hits | 127,882,136 / 0 | HAVE | out/brain.scan.log |
 | Self-test | PASS (8/8, 4 addr types) | HAVE | selftest vs Loyce 59.4M |
-| Ever-funded prevalence per family | — | DATA | Blockchair dump |
-| Arrival rate by year | — | DATA | Blockchair dump |
-| Total victim loss (USD-at-time) | — | DATA | dump + price series |
-| Distinct drainer clusters | — | DATA | dump |
-| Sweep-latency median | — | DATA | dump |
+| Ever-funded (0–450k, idx0, union) | 4 addr, all `repeat`; fwd/bwd/stride 0 | INTERIM | node.findings.jsonl |
+| Victim loss BTC (interim 0–450k) | 0.032 BTC (2 addr; USD node-gated) | INTERIM | node walk |
+| Deliberate/test-vector BTC (interim) | 0.358 BTC (2 zero-entropy vectors) | INTERIM | node walk |
+| Distinct sweepers (interim 0–450k) | 13 over 9 sweep events | INTERIM | node walk |
+| Sweep-latency median (interim) | 1 d overall; 0 d for 2015–16 non-test | INTERIM | node.latencies.tsv |
+| Arrival victim/amb (interim) | 2015: 1, 2016: 2 | INTERIM | node walk |
+| Ever-funded prevalence per family (full) | — | DATA | full-chain node walk |
+| Total victim loss USD-at-time (full) | — | DATA | node walk + price series |
