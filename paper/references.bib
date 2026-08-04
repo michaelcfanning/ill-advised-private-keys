@@ -1,0 +1,289 @@
+% References for the badseed / BIP-39 Brain Drain paper.
+% Assembled 2026-08-04 from a three-pass literature scan (academic, grey-lit,
+% citation-lineage). Lines tagged "% VERIFY:" have a field the scan could not
+% confirm against a primary source — resolve every one before the submission
+% .bib freeze. Do not cite a VERIFY field as settled.
+
+% ---------------------------------------------------------------------------
+% Primary positioning / methodology anchors
+% ---------------------------------------------------------------------------
+
+@inproceedings{vasek2016braindrain,
+  author    = {Vasek, Marie and Bonneau, Joseph and Castellucci, Ryan and Keith, Cameron and Moore, Tyler},
+  title     = {The {Bitcoin} Brain Drain: Examining the Use and Abuse of {Bitcoin} Brain Wallets},
+  booktitle = {Financial Cryptography and Data Security (FC)},
+  series    = {LNCS},
+  volume    = {9603},
+  pages     = {609--618},
+  year      = {2016},
+  doi       = {10.1007/978-3-662-54970-4_36},
+  url       = {https://link.springer.com/chapter/10.1007/978-3-662-54970-4_36}
+}
+
+@inproceedings{heninger2012psandqs,
+  author    = {Heninger, Nadia and Durumeric, Zakir and Wustrow, Eric and Halderman, J. Alex},
+  title     = {Mining Your {Ps} and {Qs}: Detection of Widespread Weak Keys in Network Devices},
+  booktitle = {USENIX Security Symposium},
+  year      = {2012},
+  url       = {https://www.usenix.org/conference/usenixsecurity12/technical-sessions/presentation/heninger}
+}
+
+@inproceedings{meiklejohn2013fistful,
+  author    = {Meiklejohn, Sarah and Pomarole, Marjori and Jordan, Grant and Levchenko, Kirill and McCoy, Damon and Voelker, Geoffrey M. and Savage, Stefan},
+  title     = {A Fistful of {Bitcoins}: Characterizing Payments Among Men With No Names},
+  booktitle = {Internet Measurement Conference (IMC)},
+  pages     = {127--139},
+  year      = {2013},
+  doi       = {10.1145/2504730.2504747}
+}
+
+@inproceedings{torres2021frontrunner,
+  author    = {Torres, Christof Ferreira and Camino, Ramiro and State, Radu},
+  title     = {Frontrunner {Jones} and the Raiders of the Dark Forest: An Empirical Study of Frontrunning on the {Ethereum} Blockchain},
+  booktitle = {USENIX Security Symposium},
+  pages     = {1343--1359},
+  year      = {2021},
+  url       = {https://www.usenix.org/conference/usenixsecurity21/presentation/torres}
+}
+
+@inproceedings{huang2018ransomware,
+  author    = {Huang, Danny Yuxing and Aliapoulios, Maxwell Matthaios and Li, Vector Guo and Invernizzi, Luca and Bursztein, Elie and McRoberts, Kylie and Levin, Jonathan and Levchenko, Kirill and Snoeren, Alex C. and McCoy, Damon},
+  title     = {Tracking Ransomware End-to-End},
+  booktitle = {IEEE Symposium on Security and Privacy (S\&P)},
+  pages     = {618--631},
+  year      = {2018},
+  doi       = {10.1109/SP.2018.00047}
+}
+
+@article{conti2019ransomwarepayments,
+  % VERIFY: author list (scan reported this as "Huang et al. / Conti et al." — confirm)
+  author    = {Conti, Mauro and Gangwal, Ankit and Ruj, Sushmita},
+  title     = {Ransomware Payments in the {Bitcoin} Ecosystem},
+  journal   = {Journal of Cybersecurity},
+  volume    = {5},
+  number    = {1},
+  pages     = {tyz003},
+  year      = {2019},
+  doi       = {10.1093/cybsec/tyz003}
+}
+
+@inproceedings{brengel2018keyleakage,
+  author    = {Brengel, Michael and Rossow, Christian},
+  title     = {Identifying Key Leakage of {Bitcoin} Users},
+  booktitle = {Research in Attacks, Intrusions, and Defenses (RAID)},
+  year      = {2018},
+  doi       = {10.1007/978-3-030-00470-5_29}
+}
+
+@inproceedings{zhou2024keyleakage,
+  author    = {Zhou, Jiao and Chen, Ting and Wang, Xiaosong and Tang, Yufei and Gu, Lei},
+  % VERIFY: full/correct author list and order (ACM DL returned 403; recovered via TAMU PDF)
+  title     = {Towards Understanding Crypto-Asset Risks on {Ethereum} Caused by Key Leakage on the {Internet}},
+  booktitle = {Companion Proceedings of the ACM Web Conference (WWW Companion)},
+  year      = {2024},
+  doi       = {10.1145/3589335.3651573},
+  url       = {https://success.cse.tamu.edu/wp-content/uploads/sites/197/2024/10/CryptoLeak_WWW24.pdf}
+}
+
+% ---------------------------------------------------------------------------
+% Related work — weak keys, wallets, incidents
+% ---------------------------------------------------------------------------
+
+@misc{ise2019ethercombing,
+  author       = {{Independent Security Evaluators} and Bednarek, Adrian},
+  title        = {Ethercombing: Finding Secrets in Popular Places (``Blockchain Bandit'')},
+  howpublished = {ISE technical report},
+  year         = {2019},
+  note         = {Industry report, not peer reviewed},
+  url          = {https://www.ise.io/casestudies/ethercombing/}
+  % VERIFY: live report URL path
+}
+
+@misc{milksad2023,
+  author       = {{Milk Sad disclosure team (Distrust/SecurityLab)} and Reitter, Christian},
+  title        = {Milk Sad: Weak Entropy in {Libbitcoin} Explorer {BIP-39} Generation},
+  howpublished = {Public disclosure, CVE-2023-39910},
+  year         = {2023},
+  url          = {https://milksad.info/}
+  % VERIFY: exact NVD description string at https://nvd.nist.gov/vuln/detail/CVE-2023-39910
+}
+
+@misc{milksad2026update16,
+  author       = {Reitter, Christian},
+  title        = {Research Update 16: Investigating Weak Brainwallets},
+  howpublished = {Milk Sad research blog},
+  year         = {2026},
+  month        = {jan},
+  note         = {Ever-funded/drained measurement of classic SHA256-as-key brainwallets; excludes BIP-39 mnemonics and SHA256-as-entropy; the closest active adjacent work},
+  url          = {https://milksad.info/posts/research-update-16/}
+}
+
+@misc{lopp2024repeatedword,
+  author       = {Lopp, Jameson},
+  title        = {How Many {Bitcoin} Seed Phrases Are Only One Repeated Word?},
+  howpublished = {blog.lopp.net},
+  year         = {2024},
+  month        = {aug},
+  url          = {https://blog.lopp.net/how-many-bitcoin-seed-phrases-are-only-one-repeated-word/}
+}
+
+@misc{guiar2025entropy,
+  author       = {Guiar, Oqba},
+  title        = {Third Report on Entropy Patterns Concerning Repetitions in 24-Word Mnemonic Phrases},
+  howpublished = {Zenodo},
+  year         = {2025},
+  doi          = {10.5281/zenodo.15786076},
+  url          = {https://zenodo.org/records/15786076}
+  % VERIFY: Zenodo DOI (constructed from record id; confirm)
+}
+
+@misc{castellucci2015brainflayer,
+  author       = {Castellucci, Ryan},
+  title        = {Cracking Cryptocurrency Brainwallets},
+  howpublished = {DEF CON 23; brainflayer (\url{https://github.com/ryancdotorg/brainflayer})},
+  year         = {2015}
+}
+
+@misc{robinson2020darkforest,
+  author       = {Robinson, Dan and Konstantopoulos, Georgios},
+  title        = {Ethereum is a Dark Forest},
+  howpublished = {Paradigm},
+  year         = {2020},
+  month        = {aug},
+  url          = {https://www.paradigm.xyz/2020/08/ethereum-is-a-dark-forest}
+}
+
+@misc{randstorm2023,
+  author       = {{Unciphered}},
+  title        = {Randstorm: You Can't Patch a House of Cards},
+  howpublished = {Unciphered blog},
+  year         = {2023},
+  note         = {Weak SecureRandom in BitcoinJS-era browser wallets (2011--2015); machine-weak-entropy, distinct from human-memorable seeds},
+  url          = {https://www.unciphered.com/blog/randstorm-you-cant-patch-a-house-of-cards}
+}
+
+@misc{coldcardmk3_2026,
+  % VERIFY: news report, not primary; confirm figures/date before citing
+  title        = {Coldcard {Mk3} Firmware Bug Leaves {BTC} Wallet Seeds Exposed},
+  howpublished = {The Crypto Times},
+  year         = {2026},
+  note         = {~594 BTC swept in a ~25 min window; firmware reduced seed entropy to ~40 bits; generation-flaw family},
+  url          = {https://www.cryptotimes.io/2026/07/31/bitcoins-invisible-risk-coldcard-mk3-firmware-bug-leaves-btc-wallet-seeds-exposed-38m-drained/}
+}
+
+% ---------------------------------------------------------------------------
+% Systematizations / usable-security context
+% ---------------------------------------------------------------------------
+
+@article{erinle2025sok,
+  author    = {Erinle, Yimika and Kethepalli, Yebo and Feng, Yebo and Xu, Jiahua},
+  % VERIFY: author list and year (2023 preprint vs 2025 Computer Networks version)
+  title     = {{SoK}: Design, Vulnerabilities, and Security Measures of Cryptocurrency Wallets},
+  journal   = {Computer Networks},
+  year      = {2025},
+  doi       = {10.1016/j.comnet.2025.111691}
+}
+
+@article{houy2023wallets,
+  author    = {Houy, Sabine and Schmid, Philipp and Bartel, Alexandre},
+  title     = {Security Aspects of Cryptocurrency Wallets---A Systematic Literature Review},
+  journal   = {ACM Computing Surveys},
+  year      = {2023},
+  doi       = {10.1145/3596906}
+}
+
+@misc{homoliak2024sok,
+  author       = {Homoliak, Ivan and Pere\v{s}\'{i}ni, Martin},
+  title        = {{SoK}: Cryptocurrency Wallets -- A Security Review and Classification based on Authentication Factors},
+  howpublished = {arXiv:2402.17659},
+  year         = {2024},
+  url          = {https://arxiv.org/abs/2402.17659}
+}
+
+@inproceedings{eleshin2025seedphrases,
+  author    = {Eleshin, and Sun, and Ye, and Das, and Hong},
+  % VERIFY: full author names (scan returned surnames only)
+  title     = {Of Secrets and Seedphrases: Seed Phrase Management among Cryptocurrency Users},
+  booktitle = {CHI Conference on Human Factors in Computing Systems},
+  year      = {2025},
+  doi       = {10.1145/3706598.3713209}
+}
+
+% ---------------------------------------------------------------------------
+% Tools that operationalize our families (existence evidence, not measurement)
+% ---------------------------------------------------------------------------
+
+@misc{brain2bip,
+  author       = {{armorybrainwallet}},
+  title        = {brain2bip: {SHA256(passphrase)} to {BIP-39} entropy to mnemonic},
+  howpublished = {\url{https://github.com/armorybrainwallet/brain2bip}},
+  note         = {Operationalizes the SHA256-as-BIP-39-entropy (F7) family; generation only, no measurement},
+  year         = {2025}
+  % VERIFY: year / current maintenance status
+}
+
+@misc{vuke,
+  author       = {{oritwoen}},
+  title        = {vuke: Research tool for vulnerable key generation},
+  howpublished = {\url{https://github.com/oritwoen/vuke}},
+  note         = {Nine weak-key families; our memorable-BIP-39-mnemonic and SHA256-as-entropy families are absent},
+  year         = {2025}
+  % VERIFY: year
+}
+
+% ---------------------------------------------------------------------------
+% Specifications (BIPs have no DOI; cite by number + canonical repo)
+% ---------------------------------------------------------------------------
+
+@misc{bip32,
+  author       = {Wuille, Pieter},
+  title        = {{BIP-32}: Hierarchical Deterministic Wallets},
+  year         = {2012},
+  url          = {https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki}
+}
+
+@misc{bip39,
+  author       = {Palatinus, Marek and Rusnak, Pavol and Voisine, Aaron and Bowe, Sean},
+  title        = {{BIP-39}: Mnemonic Code for Generating Deterministic Keys},
+  year         = {2013},
+  url          = {https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki}
+}
+
+@misc{bip44,
+  author       = {Palatinus, Marek and Rusnak, Pavol},
+  title        = {{BIP-44}: Multi-Account Hierarchy for Deterministic Wallets},
+  year         = {2014},
+  url          = {https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki}
+}
+
+@misc{bip49,
+  author       = {Weigl, Daniel},
+  title        = {{BIP-49}: Derivation Scheme for {P2WPKH}-nested-in-{P2SH} Based Accounts},
+  year         = {2016},
+  url          = {https://github.com/bitcoin/bips/blob/master/bip-0049.mediawiki}
+  % VERIFY: author/year against BIP header
+}
+
+@misc{bip84,
+  author       = {Rusnak, Pavol},
+  title        = {{BIP-84}: Derivation Scheme for {P2WPKH} Based Accounts},
+  year         = {2017},
+  url          = {https://github.com/bitcoin/bips/blob/master/bip-0084.mediawiki}
+  % VERIFY: author/year against BIP header
+}
+
+@misc{bip86,
+  author       = {Chow, Ava},
+  title        = {{BIP-86}: Key Derivation for Single Key {P2TR} Outputs},
+  year         = {2021},
+  url          = {https://github.com/bitcoin/bips/blob/master/bip-0086.mediawiki}
+  % VERIFY: author name form/year against BIP header
+}
+
+@misc{cve202339910,
+  title        = {{CVE-2023-39910}: Weak Entropy in {Libbitcoin} Explorer {BIP-39} Mnemonic Generation},
+  howpublished = {NVD},
+  year         = {2023},
+  url          = {https://nvd.nist.gov/vuln/detail/CVE-2023-39910}
+  % VERIFY: exact description string
+}
