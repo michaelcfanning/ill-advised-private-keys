@@ -7,6 +7,8 @@ using WeakKeyScanner;
 //   selftest --set FILE      Prove the offline oracle can emit a true positive.
 //   analyze FILE [--events OUT]  Classify findings into compromise events (ECONOMICS.md).
 //   bcscan --weakset F --dumps D  Ever-funded oracle: intersect weak addrs w/ Blockchair outputs.
+//   emit [options]           Serialize enumerated weak candidate addresses to a TSV (weakset producer).
+//   nodewalk --weakset F     Ever-funded + sweep index straight from local bitcoind (resumable).
 //   scan [options]           Enumerate repeated-word candidates and check funding.
 //
 // scan options:
@@ -58,6 +60,16 @@ if (args[0] == "selftest")
 if (args[0] == "bcscan")
 {
     return BlockchairScan.Run(args);
+}
+
+if (args[0] == "emit")
+{
+    return EmitSet.Run(args);
+}
+
+if (args[0] == "nodewalk")
+{
+    return NodeWalk.Run(args);
 }
 
 Console.Error.WriteLine($"unknown command: {args[0]}");
