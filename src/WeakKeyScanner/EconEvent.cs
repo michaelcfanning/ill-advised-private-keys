@@ -51,7 +51,12 @@ public static class Econ
         var keys = new HashSet<string>(StringComparer.Ordinal)
         {
             "correct horse battery staple", "password", "123456", "bitcoin", "satoshi",
+            // Canonical BIP-39 zero-entropy vectors: 12-word (abandon x11 + about) and
+            // 24-word (abandon x23 + art). Both are famous test mnemonics, repeatedly
+            // funded by testers — deliberate, never victims. The node walk surfaced the
+            // 24-word one holding 0.35 BTC, which would otherwise dominate "victim" loss.
             "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+            "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art",
         };
         var addrs = new HashSet<string>(StringComparer.Ordinal)
         {
