@@ -57,3 +57,29 @@ Milk Sad group published an adjacent ever-funded brainwallet measurement in Jan
 2026 and is the fast-moving competitor — reinforces the USENIX C1 timing. No
 manuscript prose changed in this commit; §10 rewrite and the footnote→`[@key]`
 citation migration deferred pending the human's format decision.
+
+### 2026-08-04 · `ai` · De-stake novelty prose, rewrite §10, migrate to Pandoc citations
+
+**Prompt (verbatim):**
+
+> yes go ahead with all of this. i will say, though i've observed a lot of jumping
+> up and down over establishing novelty, articulating what's *first* in a paper,
+> i'm not very interested in this. i definitely want to anchor what we do in other
+> work, connect to it, and add new things. i'm not interested in teasing out our
+> novelty or making claims in the text. i simply want to complete the work, present
+> and analyze the data in the most useful/cogent way.
+
+Clarified mid-turn: "i've observed that attitude in many academic papers" / "an
+intense desire to lay stake to being first" — the register to avoid.
+
+**Summary:** Changed the manuscript register from novelty-staking to anchor-and-
+connect per the human's direction. Abstract, §1 ("Neighboring populations" replaces
+"The measurement gap"; dropped "Nobody has quantified it"/"previously unscanned"),
+Contributions item 1, and §4 (dropped "never-scanned") de-staked. §10 rewritten as
+"what we build on" — five threads (weak-key measurement; weak generation vs. weak
+choice; recent adjacent measurement; economic/clustering methods; wallets & users)
+folding in the new citations (Heninger, Torres, Huang, Conti, Brengel, Ethercombing,
+Milk Sad #16, Zhou, Lopp, Guiar, brain2bip, vuke, wallet SoKs, Eleshin). Migrated
+all footnote citations to Pandoc `[@key]` against references.bib. Installed pandoc
+3.10 and ran a trial `--citeproc` conversion: 0 unresolved-citation warnings,
+bibliography renders — the md→LaTeX pipeline is proven.
