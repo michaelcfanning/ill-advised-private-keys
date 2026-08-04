@@ -11,20 +11,83 @@ it is [HAVE].
 
 ---
 
-## Abstract [TODO]
+## Abstract [FRAME — numbers DATA]
 
-One paragraph: the population (BIP-39 memorable-mnemonic keys + SHA256(pw) as
-BIP-39 entropy), the headline loss/latency/drainer numbers, the freshness verdict
-(are victims still arriving?), and the shipped defense. Write last, once the
-numbers are [HAVE].
+> Frame written; bracketed quantities stay `[DATA]` until measured, and no number
+> enters this paragraph before it is `[HAVE]` in the ledger.
 
-## 1. Introduction [TODO]
+A BIP-39 seed phrase is only as strong as the entropy behind it, and a checksum
+that validates *form* offers no protection against a human who chooses something
+*memorable*: a repeated word, a counted sequence, a hashed password used as
+entropy. Attackers have swept such keys for over a decade, but the defensive side
+is unmeasured for the BIP-39 mnemonic-pattern population specifically — prior
+measurement stopped at `SHA256(password)` brainwallets and at weak-RNG generation.
+We enumerate the memorable-mnemonic space, derive addresses across the standard
+HD schemes (BIP-44/49/84/86, compressed and uncompressed), and measure — entirely
+read-only, with a tool that provably cannot move funds — how much value these keys
+ever held, how fast it was swept, how concentrated the drainers are, and, the
+question that governs disclosure, whether fresh victims still arrive. We find
+[the current-balance space swept clean: 0 hits across 150M derived addresses], and
+[DATA: ever-funded prevalence, median sweep latency, drainer concentration,
+arrival-rate verdict]. We ship the defense before the specifics: a non-blocking
+BIP-39 strength check and a poisoned-address denylist, contributed upstream. All
+code, the positive-control self-test that makes our null results trustworthy, and
+a fully auditable record of the authoring process accompany the paper.
 
-- The dark-forest premise; attackers have farmed weak keys for a decade.
-- The measurement gap: FC16 measured brainwallets; nobody has measured the BIP-39
-  mnemonic-pattern population or the SHA256(pw)-as-entropy family.
-- Contributions (see below).
-- Defense-before-disclosure stance.
+## 1. Introduction [HAVE — prose drafted]
+
+A public blockchain is a hostile environment for a weak secret. Every spendable
+key sits in the open, and automated adversaries continuously enumerate the keys a
+human might plausibly have chosen, sweeping any that hold value the instant they
+are funded — the "dark forest" that observers of these chains have described for
+years.[^darkforest] For keys derived from memorable secrets this is not a
+hypothetical: brainwallets built as `SHA256(password)` were farmed to exhaustion
+over 2011–2015, with essentially every funded wallet emptied, often within
+minutes.[^fc16]
+
+The seed phrase was supposed to move users away from this failure mode. BIP-39
+turned a wallet's root secret into a sequence of English words with a built-in
+checksum,[^bip39] and BIP-32/44/49/84/86 turned that seed into an entire tree of
+addresses.[^bip32] But the checksum validates *form*, not *randomness*: a phrase
+that a person deliberately made easy to remember — the same word twelve times, the
+wordlist in order, a favorite password hashed into the entropy field — passes the
+checksum and produces perfectly valid addresses. The security of the whole scheme
+rests on an assumption the standard cannot enforce, that the entropy was actually
+random. Where a human substitutes a *procedure they can memorize* for that
+entropy, the real strength is not the nominal 128 or 256 bits but the length of
+the shortest description of that procedure — a dozen bits, well inside an
+attacker's reach.
+
+**The measurement gap.** What has been measured is adjacent but disjoint. Vasek et
+al. measured `SHA256(password)` *brainwallets*, where the password hash is used
+directly as the private key.[^fc16] Milk Sad measured *weak-RNG* generation, where
+a broken 32-bit seed feeds an otherwise-correct BIP-39 pipeline.[^milksad] Neither
+reaches the population we study: BIP-39 seed phrases that are *memorable by
+construction*, and the previously unscanned family in which `SHA256(password)` is
+used not as a raw key but as BIP-39 *entropy* (family F7). This is a different era,
+a different derivation path, and a different user than the brainwallet cohort — yet
+the same downstream dynamics of funding, sweeping, and loss. Nobody has quantified
+it.
+
+**What we do.** We enumerate the memorable-mnemonic space by family (§4), derive
+addresses across the standard HD schemes and script types (§5), and check
+read-only whether each address ever held value. Detection is a local membership
+test against a set of funded addresses held as 64-bit hashes, so the enumeration
+runs at scale with no network in the loop (§5). From the addresses that were ever
+funded we measure the economics the defensive literature is missing for this
+population (§6–7): how prevalent funded weak keys are per family, how fast they are
+swept, how concentrated the drainers are, and whether victims are *still arriving*
+today — the freshness result that decides what we can safely disclose and when.
+Crucially, the tool cannot move funds: no code path constructs, signs, or
+broadcasts a transaction, and it is open source so the guarantee is auditable
+rather than asserted (§9).
+
+**Defense before disclosure.** The fixes that matter — a strength check in BIP-39
+libraries, an import-time warning in wallets, and a poisoned-address denylist —
+need to know only *which patterns* are weak, not *which addresses* are funded. We
+therefore build and contribute the defense on aggregate statistics first, and
+treat the question of publishing any per-address specifics as a separate, data-
+driven decision governed by the disclosure tiers in §9.
 
 ### Contributions
 1. Measurement of a new population: BIP-39 mnemonic-pattern keys + SHA256(pw) as
@@ -37,11 +100,50 @@ numbers are [HAVE].
 5. An auditable, funds-neutral methodology: an open-source scanner that provably
    cannot move funds, with a pre-registered economic analysis.
 
-## 2. Background [TODO]
+## 2. Background [HAVE — prose drafted]
 
-BIP-39 (entropy + checksum validates form, not randomness); BIP-32/44/49/84/86
-derivation; brainwallets; the raw-key (target K) vs entropy (target E) split.
-Condense from [../PATTERNS.md](../PATTERNS.md).
+**BIP-39 seeds.** A BIP-39 mnemonic encodes an initial entropy of 128–256 bits as
+12–24 words drawn from a fixed 2048-word list; the last word packs a short checksum
+(entropy length ÷ 32 bits) so that random typos are caught.[^bip39] The mnemonic,
+optionally salted with a user passphrase, is stretched through PBKDF2 into a 512-bit
+seed. Two facts matter for this work. First, the checksum is a function of the
+entropy alone: **any** entropy value yields a valid mnemonic, so validity certifies
+form, never randomness. Second, the map from words to entropy is public and
+invertible, so an attacker who can guess the *procedure* that generated the entropy
+can reproduce the seed exactly.
+
+**HD derivation.** From the seed, BIP-32 derives a hierarchical-deterministic tree
+of keys, and BIP-44/49/84/86 fix the account paths for the four address types in
+use: legacy P2PKH (`m/44'`), wrapped SegWit P2SH-P2WPKH (`m/49'`), native SegWit
+P2WPKH (`m/84'`), and Taproot P2TR (`m/86'`).[^bip32] A single seed therefore fans
+out to many addresses; a scanner that wants to find *any* value a weak seed touched
+must derive across all four schemes, and for legacy keys across both compressed and
+uncompressed public-key encodings. §5 details this fan-out.
+
+**Brainwallets and the raw-key vs. entropy split.** A brainwallet skips BIP-39
+entirely: it takes `SHA256(passphrase)` and uses the 256-bit digest *directly* as
+the private key.[^fc16][^brainflayer] Our population differs in where the memorable
+secret enters the pipeline. We distinguish two targets. **Target K** (raw key): the
+private key itself is structured or memorable — a small integer, a repeated byte
+pattern, an ASCII payload, `SHA256(password)` used as the key (the classic
+brainwallet). **Target E** (entropy): the *BIP-39 entropy field* is structured or
+memorable — the same word repeated, the wordlist walked in order, or
+`SHA256(password)` used as entropy (family F7) — after which the standard,
+randomness-assuming derivation runs on top. The two targets produce disjoint
+address sets from the same human secret, which is precisely why a brainwallet
+scanner never reaches the F7 population and vice versa. §4 enumerates the families
+under each target; the full taxonomy is in [../PATTERNS.md](../PATTERNS.md).
+
+**Sweeping.** Once a weak address is funded, taking it is a race. Multiple
+independent "drainer" bots watch for deposits to known-weak addresses and compete
+to sweep them; because Bitcoin's mempool defaults to full replace-by-fee, the
+sweep collapses to a fee-bidding contest whose winner takes the funds.[^fc16] This
+mechanic is why sweep latency is typically seconds to minutes, why a would-be
+rescuer cannot win the race, and why "send a warning transaction" is not a
+defense but a donation to the fastest drainer (§9). It also grounds the attacker
+economics of §6: the sweep is not free, so there is a deposit size below which it
+is unprofitable to chase — a threshold we measure and then repurpose as a
+defensive design parameter.
 
 ## 3. Threat model [HAVE, from MISSION.md]
 
@@ -194,7 +296,7 @@ entropy source) than ours (deliberately memorable, structurally low-entropy
 mnemonics), but the same downstream loss and sweeping dynamics.
 
 **Address clustering and measurement.** Meiklejohn et al., "A Fistful of Bitcoins"
-(IMC 2013), established the common-input-ownership heuristic we use, with bounds,
+(IMC 2013),[^clustering] established the common-input-ownership heuristic we use, with bounds,
 for the funder/sweeper analysis (§7.5) — while heeding its known limitations under
 mixing and exchange hot wallets. Our economic analysis follows the blockchain
 measurement-economics tradition, valuing flows in USD-at-transaction-time and
@@ -204,15 +306,62 @@ reporting losses as lower bounds over a defined weak-key universe.
 Deliberate-deposit contamination; lower-bound framing (only enumerated patterns);
 clustering error; selection/survivorship; price model; mempool blindness.
 
-## 12. Conclusion [TODO]
+## 12. Conclusion [FRAME — verdict DATA]
+
+Memorable BIP-39 seeds are weak in the one way a checksum cannot catch, and the
+addresses they produce sit in the same dark forest that emptied the brainwallets
+before them. We measured that this population's *current* balance is effectively
+zero — [0 hits across 150M derived addresses] — which is not safety but the
+signature of a space swept continuously; the loss is historical and lives in
+ever-funded state, not present balance. [DATA: the headline — ever-funded value
+lost, median sweep latency, drainer concentration — and the freshness verdict:
+whether first-fundings of weak addresses are still occurring, which determines
+whether this is a post-mortem or an ongoing harm.] Either way the defensive
+conclusion is the same and shippable now: form-validity is the wrong gate, so
+libraries should measure entropy strength and wallets should warn on import, and
+the poisoned-address denylist lets the ecosystem refuse known-bad seeds without
+anyone needing to enumerate them. We ship those first; we disclose specifics only
+as the freshness data licenses.
 
 ---
 
-## Open-science + ethics appendices (USENIX-mandatory) [TODO]
-- Open Science Appendix: the scanner is open source; state the artifact and how to
-  access it (anonymized for review).
-- Ethics appendix (strongly encouraged): the funds-neutral guarantee and disclosure
-  posture.
+## Open-science + ethics appendices (USENIX-mandatory) [HAVE — anonymize on submit]
+- Open Science Appendix: the scanner, the positive-control `selftest`, and the
+  analysis code are open source, released as **`badseed`** (anonymized mirror for
+  double-blind review; de-anonymized on publication). The self-test makes the null
+  results reproducible and trustworthy.
+- **Authoring provenance (reviewable).** The paper's authoring process is itself
+  auditable: every commit declares whether its content was AI-generated or
+  human-written, AI commits embed the verbatim driving prompt, and
+  `paper/AUTHORING-LOG.md` narrates the sequence. Method and audit commands are in
+  `AUTHORSHIP.md`. Offered so reviewers can inspect exactly how the manuscript was
+  produced. (Cite in the anonymized submission only in a way that does not reveal
+  the repository.)
+- Ethics appendix (strongly encouraged): the funds-neutral architectural guarantee
+  and the tiered disclosure posture (§9).
+
+## References (footnotes)
+
+Content-first citations; map to `\cite{}` / BibTeX on the LaTeX port.
+
+[^darkforest]: D. Robinson and G. Konstantopoulos, "Ethereum is a Dark Forest,"
+    2020; and the broader observation that public-mempool value is continuously
+    hunted by automated adversaries. *(confirm citation form; add the Bitcoin-side
+    analogue.)*
+[^fc16]: M. Vasek, J. Bonneau, R. Castellucci, C. Keith, and T. Moore, "The
+    Bitcoin Brain Drain: Examining the Use and Abuse of Bitcoin Brain Wallets,"
+    Financial Cryptography and Data Security (FC), 2016.
+[^brainflayer]: R. Castellucci, "Cracking Cryptocurrency Brainwallets," DEF CON 23,
+    2015; `brainflayer` (open-source brainwallet cracker).
+[^milksad]: Milk Sad disclosure, "Weak entropy in the libbitcoin explorer / bx
+    seed command," CVE-2023-39910, 2023.
+[^bip39]: M. Palatinus, P. Rusnak, A. Voisine, and S. Bowe, "BIP-39: Mnemonic code
+    for generating deterministic keys," 2013.
+[^bip32]: P. Wuille, "BIP-32: Hierarchical Deterministic Wallets," 2012; with
+    BIP-44 (Palatinus/Rusnak), BIP-49, BIP-84, and BIP-86 (Taproot) account paths.
+[^clustering]: S. Meiklejohn, M. Pomarole, G. Jordan, K. Levchenko, D. McCoy,
+    G. M. Voelker, and S. Savage, "A Fistful of Bitcoins: Characterizing Payments
+    Among Men with No Names," Internet Measurement Conference (IMC), 2013.
 
 ## Numbers ledger (single source of truth — fill as measured)
 | Metric | Value | Status | Source |
