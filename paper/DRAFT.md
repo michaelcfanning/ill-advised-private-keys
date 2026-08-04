@@ -199,8 +199,10 @@ bounds; sweeper population; the arrival-rate series. The classifier is implement
 > address index 0, over block heights 0–450,000 (2009–Dec 2016); the modern era
 > (2016–2026) is still processing. Source: our `nodewalk` ever-funded + sweep index
 > over a local fully-synced bitcoind — not a third-party dump — validated against
-> Blockchair on the first-ever Bitcoin transaction (§5). BTC-denominated;
-> USD-at-time remains node-gated.
+> Blockchair on the first-ever Bitcoin transaction (§5). BTC-denominated, with
+> USD-at-time from a daily price series (`data/btc_usd_daily.csv`, blockchain.info):
+> interim victim loss ≈ **$22** — negligible at this scale, dominated later by the
+> modern era.
 >
 > - **Ever-funded:** 4 distinct funded addresses, **all in the `repeat` family**
 >   (forward/backward/stride: 0 funded in this era), **100% swept** (no residual

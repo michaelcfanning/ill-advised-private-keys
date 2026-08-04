@@ -36,17 +36,18 @@ if (args[0] == "scan")
 if (args[0] == "analyze")
 {
     if (args.Length < 2) { Console.Error.WriteLine("usage: analyze <findings.jsonl> [--events OUT.jsonl]"); return 2; }
-    string? eventsOut = null, latPath = null;
+    string? eventsOut = null, latPath = null, pricesPath = null;
     for (int i = 2; i < args.Length; i++)
     {
         switch (args[i])
         {
             case "--events": eventsOut = args[++i]; break;
             case "--latencies": latPath = args[++i]; break;
+            case "--prices": pricesPath = args[++i]; break;
             default: Console.Error.WriteLine($"unknown option: {args[i]}"); return 2;
         }
     }
-    return Analyze.Run(args[1], eventsOut, latPath);
+    return Analyze.Run(args[1], eventsOut, latPath, pricesPath);
 }
 
 if (args[0] == "brainscan")
@@ -313,7 +314,7 @@ file sealed record Options(
 
 file static class Analyze
 {
-    public static int Run(string path, string? eventsOut = null, string? latPath = null)
+    public static int Run(string path, string? eventsOut = null, string? latPath = null, string? pricesPath = null)
     {
         if (!File.Exists(path)) { Console.Error.WriteLine($"not found: {path}"); return 2; }
 
@@ -323,6 +324,8 @@ file static class Analyze
             .ToList();
 
         if (findings.Count == 0) { Console.WriteLine("no findings."); return 0; }
+
+        Prices? px = pricesPath is not null && File.Exists(pricesPath) ? Prices.Load(pricesPath) : null;
 
         // sweeper address -> distinct compromised addresses it drained
         var sweeperReach = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
@@ -388,6 +391,18 @@ file static class Analyze
         Console.WriteLine($"  victims + ambiguous   : {Loss("victim", "ambiguous"):0.########} BTC");
         Console.WriteLine($"  all events            : {events.Sum(e => e.DepositValueBtc):0.########} BTC");
 
+        if (px is not null)
+        {
+            decimal Usd(params string[] cls) => events
+                .Where(e => cls.Contains(e.Classification))
+                .Sum(e => (px.Usd(e.FirstSeen) ?? 0m) * e.DepositValueBtc);
+            Console.WriteLine();
+            Console.WriteLine($"USD loss basis (deposit valued at first-seen-date close; {px.Count:N0} daily prices):");
+            Console.WriteLine($"  victims only          : ${Usd("victim"):N0}");
+            Console.WriteLine($"  victims + ambiguous   : ${Usd("victim", "ambiguous"):N0}");
+            Console.WriteLine($"  all events            : ${events.Sum(e => (px.Usd(e.FirstSeen) ?? 0m) * e.DepositValueBtc):N0}");
+        }
+
         // Arrival series — the freshness signal (needs ever-funded first_seen to be
         // complete; here it is over the current finding set only).
         var arrivals = events
@@ -408,9 +423,13 @@ file static class Analyze
 
         if (eventsOut is not null)
         {
-            Econ.WriteEvents(events, eventsOut);
+            var toWrite = px is null ? events : events.Select(e =>
+                px.Usd(e.FirstSeen) is decimal u
+                    ? e with { DepositValueUsdAtDeposit = Math.Round(u * e.DepositValueBtc, 2) }
+                    : e).ToList();
+            Econ.WriteEvents(toWrite, eventsOut);
             Console.WriteLine();
-            Console.WriteLine($"compromise events written: {System.IO.Path.GetFullPath(eventsOut)} ({events.Count} records)");
+            Console.WriteLine($"compromise events written: {System.IO.Path.GetFullPath(eventsOut)} ({toWrite.Count} records)");
         }
 
         return 0;
