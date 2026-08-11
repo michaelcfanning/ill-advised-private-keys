@@ -1,5 +1,8 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using NBitcoin;
 using NBitcoin.RPC;
 
@@ -14,14 +17,16 @@ namespace WeakKeyScanner;
 /// Emits one aggregated <see cref="Finding"/> per funded weak address, which the existing
 /// <c>analyze</c> command consumes unchanged, plus a per-sweep latency TSV.
 ///
-/// Resumable: the state (weak UTXO map + per-address accumulators + next height) is
-/// checkpointed to JSON, so a run can process the synced prefix now and extend later as
-/// the node catches up — the "process 50% now, batch the rest" workflow. Read-only:
-/// never constructs or signs a transaction (MISSION.md principle 2).
+/// Throughput: the UTXO/sweep state machine must run in height order, but the expensive
+/// per-block work — RPC fetch, block parsing, and per-output address resolution (the
+/// crypto that dominates on large modern blocks) — is order-independent. So `--threads`
+/// producers fetch+decode blocks ahead into a bounded reorder buffer, and a single
+/// consumer applies them in strict order doing only cheap dict/state operations. The
+/// result is identical to a serial walk; only the ordering-preserving work is serial.
 ///
-/// No price data: bitcoind carries no USD, so USD-at-time stays node-gated (filled from a
-/// price series later). The weak set holds only weak addresses (rare), so the UTXO map
-/// and accumulators are small regardless of chain size.
+/// Resumable: state (weak UTXO map + per-address accumulators + next height) is
+/// checkpointed to JSON, so a run can process the synced prefix now and extend later.
+/// Read-only: never constructs or signs a transaction (MISSION.md principle 2).
 /// </summary>
 public static class NodeWalk
 {
@@ -53,17 +58,35 @@ public static class NodeWalk
         public Dictionary<string, Accum> Acc { get; set; } = new();   // address -> accumulator
     }
 
+    // A block reduced to exactly what the consumer needs, with all address crypto already
+    // done in the producer thread.
+    private sealed class DecodedTx
+    {
+        public string Txid = "";
+        public bool IsCoinbase;
+        public (string Hash, uint N)[] Inputs = Array.Empty<(string, uint)>();
+        public (int Vout, string? Addr, long Sats)[] Outputs = Array.Empty<(int, string?, long)>();
+    }
+
+    private sealed class DecodedBlock
+    {
+        public int Height;
+        public string Day = "";
+        public DecodedTx[] Txs = Array.Empty<DecodedTx>();
+    }
+
     public static int Run(string[] args)
     {
         string? weakset = null;
-        int from = -1, to = -1, checkpointEvery = 20_000, progressEvery = 2_000;
-        bool resume = false;
+        int from = -1, to = -1, checkpointEvery = 20_000, progressEvery = 5_000;
+        bool resume = false, dumpOnly = false;
         string cookie = @"E:\ill-advised\bitcoin\.cookie";
         string rpcUrl = "http://127.0.0.1:8332/";
         string label = "nodewalk";
         string outFile = Path.Combine(AppContext.BaseDirectory, "out", "node.findings.jsonl");
         string latFile = Path.Combine(AppContext.BaseDirectory, "out", "node.latencies.tsv");
         string ckptFile = Path.Combine(AppContext.BaseDirectory, "out", "node.walk.state.json");
+        int threads = Environment.ProcessorCount;
 
         for (int i = 1; i < args.Length; i++)
         {
@@ -73,6 +96,7 @@ public static class NodeWalk
                 case "--from": from = int.Parse(args[++i]); break;
                 case "--to": to = int.Parse(args[++i]); break;
                 case "--resume": resume = true; break;
+                case "--dump-only": dumpOnly = true; break;
                 case "--cookie": cookie = args[++i]; break;
                 case "--rpc": rpcUrl = args[++i]; break;
                 case "--label": label = args[++i]; break;
@@ -81,11 +105,25 @@ public static class NodeWalk
                 case "--checkpoint": ckptFile = args[++i]; break;
                 case "--checkpoint-every": checkpointEvery = int.Parse(args[++i]); break;
                 case "--progress": progressEvery = int.Parse(args[++i]); break;
+                case "--threads": threads = int.Parse(args[++i]); break;
                 default: Console.Error.WriteLine($"unknown option: {args[i]}"); return 2;
             }
         }
+
+        // --dump-only: materialize findings from an existing checkpoint without walking
+        // (lets us analyze a still-running walk's accumulated state mid-run).
+        if (dumpOnly)
+        {
+            if (!File.Exists(ckptFile)) { Console.Error.WriteLine($"--dump-only needs an existing checkpoint: {ckptFile}"); return 2; }
+            var st = JsonSerializer.Deserialize<State>(File.ReadAllText(ckptFile)) ?? new State();
+            WriteFindings(st, label, outFile);
+            Console.WriteLine($"dumped {st.Acc.Count:N0} findings from checkpoint (through height {st.NextHeight:N0}) -> {Path.GetFullPath(outFile)}");
+            return 0;
+        }
+
         if (weakset is null || !File.Exists(weakset)) { Console.Error.WriteLine("nodewalk requires --weakset FILE"); return 2; }
         if (!File.Exists(cookie)) { Console.Error.WriteLine($"cookie not found: {cookie} (is bitcoind running with this datadir?)"); return 2; }
+        if (threads < 1) threads = 1;
 
         var net = Network.Main;
         var rpc = new RPCClient(RPCCredentialString.Parse($"cookiefile={cookie}"), new Uri(rpcUrl), net);
@@ -94,14 +132,12 @@ public static class NodeWalk
         try { tip = (int)rpc.GetBlockCount(); }
         catch (Exception ex) { Console.Error.WriteLine($"RPC unreachable ({rpcUrl}): {ex.Message}"); return 3; }
 
-        // Load the weak set: "address\tweakkey\tkind\tpath" (extra cols optional; also
-        // accepts a plain address-per-line file).
         var weak = LoadWeak(weakset);
         Console.WriteLine("ill-advised-private-keys — node walk (ever-funded + sweep index)");
         Console.WriteLine($"weakset : {weakset}  ({weak.Count:N0} addresses)");
         Console.WriteLine($"node tip: {tip:N0}");
+        Console.WriteLine($"threads : {threads} (prefetch producers)");
 
-        // Resume from checkpoint if asked and present.
         var state = new State();
         if (resume && File.Exists(ckptFile))
         {
@@ -118,7 +154,6 @@ public static class NodeWalk
         Console.WriteLine(new string('=', 72));
 
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(latFile))!);
-        // Append latencies (a resumed run continues the same file); header once.
         bool latExists = File.Exists(latFile);
         using var lat = new StreamWriter(latFile, append: resume && latExists);
         if (!(resume && latExists))
@@ -127,91 +162,157 @@ public static class NodeWalk
         var sw = Stopwatch.StartNew();
         long fundings = 0, sweeps = 0;
         bool stop = false;
-        Console.CancelKeyPress += (_, e) => { e.Cancel = true; stop = true; Console.WriteLine("\n[cancel] finishing current block, then checkpointing…"); };
+        Console.CancelKeyPress += (_, e) => { e.Cancel = true; stop = true; Console.WriteLine("\n[cancel] draining in-flight blocks, then checkpointing…"); };
 
-        int h = start;
-        for (; h <= end && !stop; h++)
+        // ---- Prefetch pipeline ----
+        int windowCap = Math.Max(threads * 4, 64);
+        var buffer = new ConcurrentDictionary<int, DecodedBlock>();
+        var slots = new SemaphoreSlim(windowCap);
+        int nextToFetch = start;
+        object fetchLock = new();
+
+        var producers = new Task[threads];
+        for (int t = 0; t < threads; t++)
         {
-            Block block;
-            try { block = rpc.GetBlock(rpc.GetBlockHash(h)); }
-            catch (Exception ex) { Console.Error.WriteLine($"[warn] block {h}: {ex.Message}; retrying once"); System.Threading.Thread.Sleep(500); try { block = rpc.GetBlock(rpc.GetBlockHash(h)); } catch { Console.Error.WriteLine($"[skip] block {h}"); continue; } }
-
-            string day = block.Header.BlockTime.UtcDateTime.ToString("yyyy-MM-dd");
-
-            foreach (var tx in block.Transactions)
+            producers[t] = Task.Run(() =>
             {
-                // Sweeps: inputs spending a known weak UTXO.
-                if (!tx.IsCoinBase)
+                while (!stop)
                 {
-                    foreach (var vin in tx.Inputs)
+                    int h;
+                    lock (fetchLock) { if (nextToFetch > end) return; h = nextToFetch++; }
+                    slots.Wait();
+                    if (stop) { slots.Release(); return; }
+                    DecodedBlock db;
+                    try { db = Decode(rpc, h, net); }
+                    catch (Exception ex)
                     {
-                        var key = $"{vin.PrevOut.Hash}:{vin.PrevOut.N}";
+                        Console.Error.WriteLine($"[skip] block {h}: {ex.Message}");
+                        db = new DecodedBlock { Height = h, Day = "", Txs = Array.Empty<DecodedTx>() };
+                    }
+                    buffer[h] = db;
+                }
+            });
+        }
+
+        // ---- Consumer: strict height order, cheap state ops only ----
+        int hc = start;
+        for (; hc <= end && !stop; hc++)
+        {
+            DecodedBlock? db = null;
+            var spin = new SpinWait();
+            while (!buffer.TryRemove(hc, out db)) { if (stop) break; spin.SpinOnce(); }
+            if (db is null) break;
+            slots.Release();
+
+            foreach (var tx in db.Txs)
+            {
+                if (!tx.IsCoinbase)
+                {
+                    foreach (var (ph, pn) in tx.Inputs)
+                    {
+                        var key = $"{ph}:{pn}";
                         if (!state.Utxo.TryGetValue(key, out var u)) continue;
                         var acc = state.Acc[u.Addr];
                         acc.Outbound++;
                         acc.Balance -= u.Sats;
-                        acc.Last = Max(acc.Last, day);
-                        // Sweeper = where the drained value went (this tx's non-weak outputs).
+                        acc.Last = Max(acc.Last, db.Day);
                         string dest = "";
-                        foreach (var so in tx.Outputs)
+                        foreach (var (vout, addr, sats) in tx.Outputs)
                         {
-                            var a = Addr(so.ScriptPubKey, net);
-                            if (a is null || weak.ContainsKey(a)) continue;
-                            acc.Sweepers.Add(a);
-                            if (dest.Length == 0) dest = a;
+                            if (addr is null || weak.ContainsKey(addr)) continue;
+                            acc.Sweepers.Add(addr);
+                            if (dest.Length == 0) dest = addr;
                         }
                         sweeps++;
-                        lat.WriteLine($"{u.Addr}\t{u.FundTime}\t{day}\t{LatencyDays(u.FundTime, day)}\t{u.Sats}\t{dest}");
+                        lat.WriteLine($"{u.Addr}\t{u.FundTime}\t{db.Day}\t{LatencyDays(u.FundTime, db.Day)}\t{u.Sats}\t{dest}");
                         state.Utxo.Remove(key);
                     }
                 }
 
-                // Fundings: outputs paying a weak address.
-                var txid = tx.GetHash().ToString();
-                for (int n = 0; n < tx.Outputs.Count; n++)
+                foreach (var (vout, addr, sats) in tx.Outputs)
                 {
-                    var a = Addr(tx.Outputs[n].ScriptPubKey, net);
-                    if (a is null || !weak.TryGetValue(a, out var meta)) continue;
-                    long sats = tx.Outputs[n].Value.Satoshi;
-                    if (!state.Acc.TryGetValue(a, out var acc))
-                        state.Acc[a] = acc = new Accum { WeakKey = meta.WeakKey, Kind = meta.Kind, Path = meta.Path };
+                    if (addr is null || !weak.TryGetValue(addr, out var meta)) continue;
+                    if (!state.Acc.TryGetValue(addr, out var acc))
+                        state.Acc[addr] = acc = new Accum { WeakKey = meta.WeakKey, Kind = meta.Kind, Path = meta.Path };
                     acc.Received += sats;
                     acc.Balance += sats;
                     acc.Inbound++;
-                    acc.First = Min(acc.First, day);
-                    acc.Last = Max(acc.Last, day);
-                    state.Utxo[$"{txid}:{n}"] = new Utxo { Addr = a, Sats = sats, FundTime = day };
+                    acc.First = Min(acc.First, db.Day);
+                    acc.Last = Max(acc.Last, db.Day);
+                    state.Utxo[$"{tx.Txid}:{vout}"] = new Utxo { Addr = addr, Sats = sats, FundTime = db.Day };
                     fundings++;
                 }
             }
 
-            if ((h - start + 1) % progressEvery == 0)
+            if ((hc - start + 1) % progressEvery == 0)
             {
-                double bps = (h - start + 1) / Math.Max(0.001, sw.Elapsed.TotalSeconds);
-                int remain = end - h;
-                Console.WriteLine($"... h={h:N0}/{end:N0} | {fundings:N0} fundings {sweeps:N0} sweeps | {state.Acc.Count:N0} funded addrs | {bps:N0} blk/s | eta {TimeSpan.FromSeconds(remain / Math.Max(0.1, bps)):hh\\:mm\\:ss}");
+                double bps = (hc - start + 1) / Math.Max(0.001, sw.Elapsed.TotalSeconds);
+                int remain = end - hc;
+                Console.WriteLine($"... h={hc:N0}/{end:N0} | {fundings:N0} fundings {sweeps:N0} sweeps | {state.Acc.Count:N0} funded addrs | {bps:N0} blk/s | eta {TimeSpan.FromSeconds(remain / Math.Max(0.1, bps)):hh\\:mm\\:ss}");
             }
-            if ((h - start + 1) % checkpointEvery == 0)
+            if ((hc - start + 1) % checkpointEvery == 0)
             {
-                state.NextHeight = h + 1;
+                state.NextHeight = hc + 1;
                 lat.Flush();
                 Checkpoint(state, ckptFile);
             }
         }
 
-        state.NextHeight = h; // next unprocessed height (loop exited at h = last+1, or on stop at current)
+        // Unblock and drain producers.
+        stop = true;
+        slots.Release(windowCap);
+        try { Task.WaitAll(producers, 10_000); } catch { }
+
+        state.NextHeight = hc;
         lat.Flush();
         Checkpoint(state, ckptFile);
         WriteFindings(state, label, outFile);
 
         sw.Stop();
         Console.WriteLine(new string('=', 72));
-        Console.WriteLine($"done: walked [{start:N0}, {(stop ? h - 1 : end):N0}] | {fundings:N0} fundings | {sweeps:N0} sweeps | " +
-                          $"{state.Acc.Count:N0} funded weak addrs | {state.Utxo.Count:N0} still-unspent | {sw.Elapsed.TotalMinutes:N1}m");
-        Console.WriteLine($"findings : {Path.GetFullPath(outFile)}  (feed to: analyze <file> --events out\\events.jsonl)");
+        Console.WriteLine($"done: walked [{start:N0}, {(stop ? hc - 1 : end):N0}] | {fundings:N0} fundings | {sweeps:N0} sweeps | " +
+                          $"{state.Acc.Count:N0} funded weak addrs | {state.Utxo.Count:N0} still-unspent | {sw.Elapsed.TotalMinutes:N1}m " +
+                          $"({(hc - start) / Math.Max(0.001, sw.Elapsed.TotalSeconds):N0} blk/s)");
+        Console.WriteLine($"findings : {Path.GetFullPath(outFile)}  (feed to: analyze <file> --latencies ... --prices ...)");
         Console.WriteLine($"latencies: {Path.GetFullPath(latFile)}");
         Console.WriteLine($"checkpoint: {Path.GetFullPath(ckptFile)} (next height {state.NextHeight:N0}; --resume to continue)");
         return 0;
+    }
+
+    /// <summary>Fetch + parse + resolve all output addresses for one block (the parallel-heavy work).</summary>
+    private static DecodedBlock Decode(RPCClient rpc, int height, Network net)
+    {
+        var block = FetchBlock(rpc, height);
+        var day = block.Header.BlockTime.UtcDateTime.ToString("yyyy-MM-dd");
+        var txs = new DecodedTx[block.Transactions.Count];
+        for (int i = 0; i < txs.Length; i++)
+        {
+            var tx = block.Transactions[i];
+            var outs = new (int, string?, long)[tx.Outputs.Count];
+            for (int n = 0; n < outs.Length; n++)
+                outs[n] = (n, Addr(tx.Outputs[n].ScriptPubKey, net), tx.Outputs[n].Value.Satoshi);
+
+            (string, uint)[] ins;
+            if (tx.IsCoinBase) ins = Array.Empty<(string, uint)>();
+            else
+            {
+                ins = new (string, uint)[tx.Inputs.Count];
+                for (int k = 0; k < ins.Length; k++)
+                    ins[k] = (tx.Inputs[k].PrevOut.Hash.ToString(), tx.Inputs[k].PrevOut.N);
+            }
+            txs[i] = new DecodedTx { Txid = tx.GetHash().ToString(), IsCoinbase = tx.IsCoinBase, Inputs = ins, Outputs = outs };
+        }
+        return new DecodedBlock { Height = height, Day = day, Txs = txs };
+    }
+
+    /// <summary>RPC block fetch with backoff, to ride out transient work-queue contention under many producers.</summary>
+    private static Block FetchBlock(RPCClient rpc, int height)
+    {
+        for (int attempt = 1; ; attempt++)
+        {
+            try { return rpc.GetBlock(rpc.GetBlockHash(height)); }
+            catch when (attempt < 5) { Thread.Sleep(200 * attempt); }
+        }
     }
 
     private static void WriteFindings(State state, string label, string outFile)
