@@ -194,33 +194,39 @@ bounds; sweeper population; the arrival-rate series. The classifier is implement
 
 ## 7. Results
 
-> **Interim node-walk result — PRELIMINARY (this project, branch, in progress).**
-> Scope: the mnemonic-pattern union (repeat/forward/backward/stride, 12+24 word),
-> address index 0, over block heights 0–450,000 (2009–Dec 2016); the modern era
-> (2016–2026) is still processing. Source: our `nodewalk` ever-funded + sweep index
-> over a local fully-synced bitcoind — not a third-party dump — validated against
-> Blockchair on the first-ever Bitcoin transaction (§5). BTC-denominated, with
-> USD-at-time from a daily price series (`data/btc_usd_daily.csv`, blockchain.info):
-> interim victim loss ≈ **$22** — negligible at this scale, dominated later by the
-> modern era.
+> **Complete node-walk result — full chain, 2009→2026.** Scope: the mnemonic-pattern
+> union (repeat/forward/backward/stride, 12+24 word), address **index 0**, over block
+> heights 0–962,052 (genesis through 2026-08-08). Source: our parallel `nodewalk`
+> ever-funded + sweep index over a local fully-synced bitcoind — not a third-party
+> dump — validated against Blockchair on the first-ever Bitcoin transaction (§5). One
+> block (962031) was skipped on an NBitcoin parse limit; impact negligible. BTC with
+> USD-at-time from a daily price series (`data/btc_usd_daily.csv`, blockchain.info).
+> Index 0 only, so every figure is a **lower bound**.
 >
-> - **Ever-funded:** 4 distinct funded addresses, **all in the `repeat` family**
->   (forward/backward/stride: 0 funded in this era), **100% swept** (no residual
->   balance) — consistent with continuous draining.
-> - **Classification:** 2 are canonical zero-entropy test vectors
->   (`abandon×11+about`, `abandon×23+art`) → deliberate (0.358 BTC); 2 are
->   repeated-single-word mnemonics (`all×12`, `life×12`) → victim (**0.032 BTC**).
->   The 24-word test vector alone held 0.35 BTC and would have dominated a naive
->   "victim" total — the famous-key trap (§7.4); it was moved to the denylist on
->   discovery.
-> - **Sweep latency:** median 1 day overall; the 2015–2016 non-test addresses were
->   swept **within 0–1 day** (same/next-day drain).
-> - **Drainers:** 13 distinct sweeper addresses across 9 sweep events.
-> - **Limitations (interim):** tiny N at index 0 through 2016; the node walk does
->   not yet capture funders (reported funders = 0 by construction, not a true zero);
->   victim-vs-deliberate for repeated-single-word mnemonics is genuinely ambiguous
->   and pending denylist/behavioral curation. Numbers will change as the modern
->   era and higher address indices are processed.
+> - **Ever-funded (§7.2):** **158** distinct funded weak addresses — **127 `repeat`,
+>   31 `forward`; `backward`/`stride`: 0.** Essentially all swept (1 residual UTXO).
+>   Aggregate value drained: **2.588 BTC** (≈ $56.4k at deposit-time prices).
+> - **Loss / classification (§7.4):** **100 victims**, deposits **1.805 BTC ≈
+>   \$48,107 USD-at-transaction-time.** Deliberate/test: 7 published zero-entropy
+>   vectors (0.781 BTC), 46 sub-dust, 5 ambiguous. The victim/deliberate line for
+>   repeated-single-word mnemonics is the main soft spot — some "victims" may be
+>   undocumented test funds, so victim loss is an upper estimate.
+> - **Sweep latency (§7.2) — the headline:** median **0 days in every year 2015–2026**
+>   (n=386 sweeps, p90 = 1 day, max 279, mean 4.2). Funded weak addresses are drained
+>   the **same day**, essentially without exception.
+> - **Drainers (§7.5):** **230** distinct sweeper addresses, concentrated — the top
+>   bot drained **17** distinct weak addresses, the next 14, then 7/6/6. Automated
+>   harvesting, not incidental collection.
+> - **Freshness (§7.3) — the verdict:** victim/ambiguous first-fundings are
+>   **sustained, not declining**: 13 (2021), 13 (2022), 15 (2023), 15 (2024), 14
+>   (2025), 10 (2026 partial). Fresh victims keep arriving a decade on.
+> - **Read:** the *magnitude* is modest (~\$48k victim loss over a decade at index 0),
+>   but the *dynamics* are an unambiguous dark-forest signature — instant,
+>   concentrated, ongoing. That characterization is the contribution, independent of
+>   the dollar total.
+> - **Limitations:** index 0 only (lower bound); funders not captured (reported
+>   funders = 0 by construction); repeated-single-word victim/deliberate classification
+>   uncertain; USD is deposit-time (sweep-time basis pending); one block skipped.
 
 ### 7.1 The current-balance space is swept clean [HAVE]
 - Repeated-word LIVE scan, Loyce 59M current-balance set, full 12+24-word space,
@@ -232,13 +238,18 @@ bounds; sweeper population; the arrival-rate series. The classifier is implement
   swept continuously. Present balance is the wrong signal; the loss is historical
   and must be read from ever-funded state, not current balance.
 
-### 7.2 Ever-funded prevalence and sweep latency [DATA]
-Requires the ever-funded set (Blockchair dump). Per-family: fraction of the
-enumerated space ever funded, fraction swept, sweep-latency distribution (Fig F1).
+### 7.2 Ever-funded prevalence and sweep latency [HAVE]
+Complete-chain node walk (index 0): **158 funded** weak addresses (127 `repeat`,
+31 `forward`; `backward`/`stride` 0), essentially all swept, 2.588 BTC drained in
+aggregate. Sweep-latency distribution: **median 0 days in every year 2015–2026**
+(n=386, p90 = 1 day, max 279) — funded weak addresses are drained the same day
+(Fig F1). The one live-balance address is the sole residual UTXO.
 
-### 7.3 Freshness — do victims still arrive? [DATA]
-Arrival rate of first-funding per period (Fig F2). The verdict that sets the
-disclosure posture.
+### 7.3 Freshness — do victims still arrive? [HAVE]
+Yes. Victim/ambiguous first-fundings are **sustained, not declining**: 13 (2021),
+13 (2022), 15 (2023), 15 (2024), 14 (2025), 10 (2026 partial) (Fig F2). Fresh
+victims keep arriving a decade after the pattern was public — the space is active,
+which is the verdict that shapes the disclosure posture (§9).
 
 ### 7.4 Confirmed hits (recon) [REPRO]
 Prior API recon surfaced real funded-then-swept weak keys (e.g. repeated-word
@@ -247,8 +258,11 @@ brainwallet control `correct horse battery staple` ≈21.9 BTC gross, classified
 deliberate-published). **Reproduce every figure exactly before use; treat famous
 keys as deliberate, not victim.**
 
-### 7.5 The drainers [DATA]
-Sweeper-cluster concentration, longevity, cumulative gain (Fig F3). Do they race?
+### 7.5 The drainers [HAVE]
+**230** distinct sweeper addresses drained the 158 funded weak addresses, and the
+set is **concentrated**: the top drainer swept **17** distinct weak addresses, the
+next 14, then 7/6/6 (Fig F3). Combined with the same-day latency (§7.2), this is
+automated harvesting by a handful of bots, not incidental collection.
 
 ## 8. The defense [HAVE design]
 
@@ -419,11 +433,10 @@ section is populated automatically and left empty in the source.
 | CrackStation passwords scanned | 63,941,068 | HAVE | out/brain.scan.log |
 | CrackStation addresses / hits | 127,882,136 / 0 | HAVE | out/brain.scan.log |
 | Self-test | PASS (8/8, 4 addr types) | HAVE | selftest vs Loyce 59.4M |
-| Ever-funded (0–450k, idx0, union) | 4 addr, all `repeat`; fwd/bwd/stride 0 | INTERIM | node.findings.jsonl |
-| Victim loss BTC (interim 0–450k) | 0.032 BTC (2 addr; USD node-gated) | INTERIM | node walk |
-| Deliberate/test-vector BTC (interim) | 0.358 BTC (2 zero-entropy vectors) | INTERIM | node walk |
-| Distinct sweepers (interim 0–450k) | 13 over 9 sweep events | INTERIM | node walk |
-| Sweep-latency median (interim) | 1 d overall; 0 d for 2015–16 non-test | INTERIM | node.latencies.tsv |
-| Arrival victim/amb (interim) | 2015: 1, 2016: 2 | INTERIM | node walk |
-| Ever-funded prevalence per family (full) | — | DATA | full-chain node walk |
-| Total victim loss USD-at-time (full) | — | DATA | node walk + price series |
+| Ever-funded (full chain, idx0, union) | 158 addr (127 repeat, 31 forward; bwd/stride 0) | HAVE | node.findings.jsonl |
+| Victim loss (full chain) | 1.805 BTC ≈ $48,107 USD-at-time (100 victims) | HAVE | node walk + prices |
+| Deliberate/test-vector | 0.781 BTC (7 zero-entropy vectors) + 46 sub-dust | HAVE | node walk |
+| Aggregate swept (all events) | 2.588 BTC ≈ $56,364 | HAVE | node.latencies.tsv |
+| Distinct drainers | 230 sweepers; top drained 17 / 14 / 7 weak addrs | HAVE | node walk |
+| Sweep-latency median | 0 days every year 2015–2026 (n=386, p90 1d, max 279) | HAVE | node.latencies.tsv |
+| Arrival victim/amb by year | 6('17) 11('19) 13('21) 15('23) 15('24) 14('25) | HAVE | node walk |

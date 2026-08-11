@@ -119,6 +119,25 @@ fixed a methodology gap (24-word `abandon…art` vector was scoring as a 0.35 BT
 victim; denylisted it). Added a PRELIMINARY, fully-caveated interim block to §7 and
 INTERIM rows to the numbers ledger. Modern era (2016–2026) still processing via the
 IBD-watcher-triggered tail; complete-chain analysis + USD utility to follow, then a
-push notification. No merge to main. Also documented the human-proposed-content pattern
+push notification. No merge to main.
+
+### 2026-08-11 · `ai` · Complete-chain results (2009–2026) into §7 + ledger
+
+**Prompt (verbatim):**
+
+> hello, let's get parallelization working. we can't ship code that's single
+> threaded and takes days to run, want a more solid contribution. [and follow-ups:]
+> let's finish the work [...] have a total figure of value of BTC when sweeped in
+> aggregate?
+
+**Summary:** After parallelizing `nodewalk` (~16× faster) and finishing the full
+walk 0→962,052, ran the complete analysis and replaced the interim §7 block, the
+ledger, and the §7.2/7.3/7.5 placeholders with the measured full-chain result:
+158 funded weak addresses (127 repeat, 31 forward; backward/stride 0); 100 victims,
+1.805 BTC ≈ $48,107 USD-at-time; aggregate swept 2.588 BTC; 230 drainers (top swept
+17); sweep-latency median 0 days every year 2015–2026; victim arrivals sustained
+~13–15/yr through 2025. Framed honestly: modest dollars, but instant + concentrated
++ ongoing draining — the characterization is the contribution. Limitations stated
+(index 0 lower bound, funders uncaptured, one block skipped). No merge to main. Also documented the human-proposed-content pattern
 in `AUTHORSHIP.md`. The tagline "your crypto swept into my arms because of your bad
 seed" (Michael's) is stashed for the future `badseed` repo README.
