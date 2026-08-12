@@ -9,6 +9,7 @@ using WeakKeyScanner;
 //                            prevalence and the sweep-latency distribution (ECONOMICS.md).
 //   bcscan --weakset F --dumps D  Ever-funded oracle: intersect weak addrs w/ Blockchair outputs.
 //   emit [options]           Serialize enumerated weak candidate addresses to a TSV (weakset producer).
+//                            --raw [--width W] [--f1] [--f2]  raw target-K fills (F1/F2); --append to accumulate.
 //   nodewalk --weakset F     Ever-funded + sweep index straight from local bitcoind (resumable).
 //   scan [options]           Enumerate repeated-word candidates and check funding.
 //

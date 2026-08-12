@@ -34,6 +34,16 @@ public static class Family
             if (arithmetic)
                 return step == 1 ? "forward" : step == 2047 ? "backward" : $"stride:{step}";
         }
+
+        // Non-arithmetic periodicity: a period-k word cycle (w0 w1 … repeated). Report
+        // the smallest period p in [2, prefix). A constant prefix (p==1) was already
+        // caught as "repeat" above, so any p found here is a genuine multi-word cycle.
+        for (int p = 2; p < prefix; p++)
+        {
+            bool periodic = true;
+            for (int i = p; i < prefix; i++) if (idx[i] != idx[i - p]) { periodic = false; break; }
+            if (periodic) return $"cycle:{p}";
+        }
         return "other";
     }
 
