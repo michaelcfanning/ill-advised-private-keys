@@ -1,0 +1,36 @@
+category,metric,value,unit,notes
+scope,walk_block_range,0-962052,height,genesis through 2026-08-08
+scope,address_index,0,index,index 0 only; every figure is a LOWER BOUND
+scope,mnemonic_families,repeat;forward;backward;stride,pattern,12- and 24-word
+scope,one_block_skipped,962031,height,NBitcoin parse limit; impact negligible
+everfunded,distinct_funded_weak_addresses,158,count,
+everfunded,family_repeat,127,count,repeated single word
+everfunded,family_forward,31,count,sequential wordlist walk (+1)
+everfunded,family_backward,0,count,reverse walk (-1 mod 2048)
+everfunded,family_stride,0,count,every-k-th word
+everfunded,addresses_fully_swept,157,count,
+everfunded,residual_live_utxo,1,count,ONE address still holds a balance - do NOT touch (RoE)
+everfunded,aggregate_drained,2.588,BTC,~$56.4k at deposit-time prices
+loss,victims,100,count,
+loss,victim_deposits_btc,1.805,BTC,
+loss,victim_deposits_usd,48107,USD,USD-at-transaction-time
+loss,deliberate_zero_entropy_vectors,7,count,0.781 BTC - published test vectors
+loss,sub_dust_addresses,46,count,
+loss,ambiguous_addresses,5,count,
+latency,sweep_events,386,count,per-sweep (addresses re-funded multiple times)
+latency,median_days_2015_2026,0,days,median 0 in EVERY year 2015-2026
+latency,p90_days,1,days,
+latency,max_days,279,days,
+latency,mean_days,4.2,days,
+drainers,distinct_sweepers,230,count,
+drainers,top_sweeper_addresses_drained,17,count,most concentrated bot
+drainers,second_sweeper,14,count,
+drainers,third_sweeper,7,count,
+freshness,victim_ambiguous_firstfund_2021,13,count,
+freshness,victim_ambiguous_firstfund_2022,13,count,
+freshness,victim_ambiguous_firstfund_2023,15,count,
+freshness,victim_ambiguous_firstfund_2024,15,count,
+freshness,victim_ambiguous_firstfund_2025,14,count,
+freshness,victim_ambiguous_firstfund_2026,10,count,partial year
+control,live_currentbalance_hits,0,count,repeated-word LIVE scan vs Loyce 59M set (threshold/snapshot-limited)
+control,brainwallet_passwords_scanned,63941068,count,CrackStation - 0 live hits

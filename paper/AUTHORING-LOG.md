@@ -141,3 +141,33 @@ ledger, and the §7.2/7.3/7.5 placeholders with the measured full-chain result:
 (index 0 lower bound, funders uncaptured, one block skipped). No merge to main. Also documented the human-proposed-content pattern
 in `AUTHORSHIP.md`. The tagline "your crypto swept into my arms because of your bad
 seed" (Michael's) is stashed for the future `badseed` repo README.
+
+### 2026-08-12 · `ai` · Session checkpoint: insight ledger + honeypot proposal + stats CSV
+
+**Prompts (verbatim, three concerns from one session; mapped to files below):**
+
+> generate a list with all insecure private keys observed on disk with corresponding
+> stats, as TSV or CSV so I can load into excel  →  `analysis/weakkey_aggregate_stats.csv`
+> (NOTE: per-key walk output was not persisted; this file holds the committed §7
+> *aggregates* only. The true per-key list requires re-running the walk — task #1.)
+
+> a possible research question is for us to spend money to see who is 'watching'
+> certain techniques for insecure key generation (like the backward model) [...] we
+> don't need to proceed with our honeypot work yet but a proposal is interesting (and
+> let's keep it a proposal)  →  `paper/proposals/honeypot-who-is-watching.md`
+> (PROPOSAL ONLY; no funds move; blank stake-ceiling awaits human sign-off.)
+
+> i am interested to know how/whether you are capturing things like 'the human had a
+> key insight' relative to 'the AI had a key insight'. this telemetry/narrative is
+> very interested for transparency  →  `paper/INSIGHT-LEDGER.md`
+
+**Summary:** Node-independent artifacts authored while preparing for a machine
+restart. INSIGHT-LEDGER.md adds an idea-origination axis (`Insight-Origin:
+human|ai|joint`) alongside `AUTHORSHIP.md`'s text-authorship trailer, seeded with
+this session's human insights (forward-only as a distinct class; "attackers cover
+faulty gen techniques users never exercise") and AI contributions. Honeypot proposal
+documents the active "who is watching" coverage experiment with a control arm and
+binding rules of engagement — parked, not executed. Stats CSV materializes the §7
+aggregates for Excel. Program tracked as 6 tasks; next up = author the new generators
+(`cycle:k`, F1/F2 target-K, AI-sentence corpus) with no node, then a single combined
+bitcoind pass. No merge to main.
