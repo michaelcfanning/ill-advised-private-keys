@@ -75,9 +75,30 @@ public static class EmitSet
         if (brain)
         {
             if (wordlist is null || !File.Exists(wordlist)) { Console.Error.WriteLine("emit --brain requires --wordlist FILE"); return 2; }
-            foreach (var pw in File.ReadLines(wordlist).Where(l => l.Length > 0))
-                foreach (var d in BrainwalletDeriver.Derive(pw, net))
-                { w.WriteLine($"{d.Address}\t{pw}\t{d.Kind}\t{d.Path}"); n++; }
+            // Brainwallet: privkey = SHA256(pw), one hash + EC per password. Parallel over the
+            // streamed wordlist — the partitioner serializes file MoveNext (cheap), the crypto
+            // fans out across cores. Order is irrelevant (nodewalk loads into a dict).
+            long pws = 0, addrs = 0;
+            var writeLock = new object();
+            System.Threading.Tasks.Parallel.ForEach(
+                File.ReadLines(wordlist).Where(l => l.Length > 0),
+                () => new System.Text.StringBuilder(1 << 16),
+                (pw, _, local) =>
+                {
+                    foreach (var d in BrainwalletDeriver.Derive(pw, net))
+                    {
+                        local.Append(d.Address).Append('\t').Append(pw).Append('\t')
+                             .Append(d.Kind).Append('\t').Append(d.Path).Append('\n');
+                        System.Threading.Interlocked.Increment(ref addrs);
+                    }
+                    long done = System.Threading.Interlocked.Increment(ref pws);
+                    if (local.Length > 1 << 15) { lock (writeLock) w.Write(local.ToString()); local.Clear(); }
+                    if ((done & 0x3FFFFF) == 0)
+                        Console.WriteLine($"... {done:N0} passwords, {System.Threading.Interlocked.Read(ref addrs):N0} addresses");
+                    return local;
+                },
+                local => { if (local.Length > 0) lock (writeLock) w.Write(local.ToString()); });
+            n = addrs;
         }
         else if (raw)
         {
