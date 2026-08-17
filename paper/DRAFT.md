@@ -206,6 +206,15 @@ bounds; sweeper population; the arrival-rate series. The classifier is implement
 > - **Ever-funded (§7.2):** **158** distinct funded weak addresses — **127 `repeat`,
 >   31 `forward`; `backward`/`stride`: 0.** Essentially all swept (1 residual UTXO).
 >   Aggregate value drained: **2.588 BTC** (≈ $56.4k at deposit-time prices).
+> - **Target K (§7.6) — raw-key extension:** enumerating the periodic-fill (F1) and
+>   hex-word/single-byte-fill (F2) families as private keys *directly* adds **37**
+>   funded addresses (20 periodic, 16 single-byte, 1 hex-word), disjoint from the
+>   mnemonic set — total **195** funded weak addresses. Target-K value is **dominated
+>   ~98% by one deliberately-patterned address** (private key = the 20-bit unit
+>   `0xFACED` repeated; 29.79 BTC received, confirmed on a public explorer), which we
+>   do **not** classify as a victim absent provenance; excluding it leaves ~0.6 BTC
+>   across 36 addresses. The contribution is the three newly-measured target-K
+>   sub-families and their identical same-day-sweep behaviour — not the BTC total.
 > - **Loss / classification (§7.4):** **100 victims**, deposits **1.805 BTC ≈
 >   \$48,107 USD-at-transaction-time.** Deliberate/test: 7 published zero-entropy
 >   vectors (0.781 BTC), 46 sub-dust, 5 ambiguous. The victim/deliberate line for
@@ -263,6 +272,38 @@ keys as deliberate, not victim.**
 set is **concentrated**: the top drainer swept **17** distinct weak addresses, the
 next 14, then 7/6/6 (Fig F3). Combined with the same-day latency (§7.2), this is
 automated harvesting by a handful of bots, not incidental collection.
+
+### 7.6 Raw target-K families (F1/F2) — first funded measurement [DATA]
+The §7.2 walk covered target E (BIP-39 entropy). We then enumerated the raw-key side
+(target K, §2) over the same full chain: the periodic-fill family F1 (every repeating
+unit ≤ 24 bits — 33.5M units) and the hex-word/single-byte-fill family F2, each imported
+*directly* as a 256-bit private key (one EC multiply, no PBKDF2), deriving P2PKH (both
+compressions), P2WPKH and P2TR per key. This surfaced **37 funded** target-K addresses,
+disjoint from the mnemonic set:
+
+| Sub-family | Funded addrs | BTC received |
+| --- | --- | --- |
+| Periodic fills (F1) | 20 | 29.843 |
+| Single-byte fills (F2) | 16 | 0.498 |
+| Hex-word fills (F2) | 1 | 0.047 |
+
+Two cautions bound the reading. First, **the aggregate is not representative**: a single
+address — private key = the 20-bit unit `0xFACED` repeated (P2PKH
+`19zngQtwXcqowdkbzAsYUfJdRqdwU2gt2X`, 29.79 BTC received, 7 txs, independently confirmed
+on a public explorer) — is ~98% of the target-K value; the remaining 36 addresses total
+~0.6 BTC. Second, a deliberately-patterned key like this is as plausibly a
+published/vanity/puzzle target (knowingly deposited to) as a broken-RNG victim, so we do
+not count it as a victim without provenance. The load-bearing results are therefore the
+**count** — 37 more funded weak addresses across three previously-unmeasured target-K
+sub-families — and that they exhibit the **same instant-sweep dynamics** as the mnemonic
+set (median 0-day latency). The clean small-value illustrations that these "joke" keys do
+get funded and drained in practice are `0x1111…` (0.41 BTC), `0xBBBB…` (0.065 BTC), and
+`deadbeef…` (0.047 BTC, funded and swept same day in 2012).
+
+**Proportion.** Even with the target-K extension, the population is 195 funded weak
+addresses over 17 years with ~15 fresh per year — negligible against total Bitcoin
+activity. The value here is the taxonomy of newly-observed key classes and the measured
+dynamics, not the magnitude of loss, which is small.
 
 ## 8. The defense [HAVE design]
 
@@ -434,6 +475,9 @@ section is populated automatically and left empty in the source.
 | CrackStation addresses / hits | 127,882,136 / 0 | HAVE | out/brain.scan.log |
 | Self-test | PASS (8/8, 4 addr types) | HAVE | selftest vs Loyce 59.4M |
 | Ever-funded (full chain, idx0, union) | 158 addr (127 repeat, 31 forward; bwd/stride 0) | HAVE | node.findings.jsonl |
+| Ever-funded target-K (F1/F2, full chain) | 37 addr (20 periodic, 16 byte, 1 hex-word) | HAVE | node.findings.jsonl (combined) |
+| Target-K received | 30.387 BTC (29.79 in one 0xFACED-repeat addr; ~0.6 BTC in other 36) | HAVE | analyze (combined) |
+| Combined funded weak addrs | 195 (158 target-E mnemonic + 37 target-K) | HAVE | node.findings.jsonl (combined) |
 | Victim loss (full chain) | 1.805 BTC ≈ $48,107 USD-at-time (100 victims) | HAVE | node walk + prices |
 | Deliberate/test-vector | 0.781 BTC (7 zero-entropy vectors) + 46 sub-dust | HAVE | node walk |
 | Aggregate swept (all events) | 2.588 BTC ≈ $56,364 | HAVE | node.latencies.tsv |
