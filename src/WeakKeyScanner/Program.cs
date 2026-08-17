@@ -375,6 +375,37 @@ file static class Analyze
             Console.WriteLine($"  {g.Key,-12}  {funded,5} funded  {recv,16:0.########} BTC  {victims,5} victims");
         }
 
+        // ---- Disposition: raced (attacker sweep) vs custody (owner-moved) ----
+        // Latency-primary (a drain is a race), corroborated by sweeper reach and flow shape.
+        var minLat = latPath is not null && File.Exists(latPath) ? ReadMinLatency(latPath) : null;
+        int MaxReach(Finding f) => f.Sweepers.Length == 0 ? 0
+            : f.Sweepers.Max(s => sweeperReach.TryGetValue(s, out var set) ? set.Count : 0);
+        var byBucket = findings
+            .Select(f => (f, b: Classify.Of(f, MaxReach(f),
+                minLat is not null && minLat.TryGetValue(f.Address, out var d) ? d : (int?)null)))
+            .GroupBy(x => x.b)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        Console.WriteLine();
+        Console.WriteLine("disposition (raced = attacker sweep vs custody = owner-moved):");
+        if (minLat is null)
+            Console.WriteLine("  (no --latencies given: using a same-day activity window as the race proxy)");
+        foreach (var b in new[] { Classify.Bucket.Drain, Classify.Bucket.OneShot,
+                                  Classify.Bucket.CustodyActive, Classify.Bucket.CustodyLatency, Classify.Bucket.Live })
+        {
+            if (!byBucket.TryGetValue(b, out var list)) continue;
+            decimal recv = list.Sum(x => x.f.TotalReceivedSats) / 100_000_000m;
+            Console.WriteLine($"  {list.Count,4}  {recv,16:0.########} BTC  {Classify.Label(b)}");
+        }
+        decimal SumB(params Classify.Bucket[] bs) => bs
+            .SelectMany(b => byBucket.TryGetValue(b, out var l) ? l : new())
+            .Sum(x => x.f.TotalReceivedSats) / 100_000_000m;
+        int CntB(params Classify.Bucket[] bs) => bs.Sum(b => byBucket.TryGetValue(b, out var l) ? l.Count : 0);
+        Console.WriteLine($"  custody {CntB(Classify.Bucket.CustodyLatency, Classify.Bucket.CustodyActive)} addrs / " +
+                          $"{SumB(Classify.Bucket.CustodyLatency, Classify.Bucket.CustodyActive):0.########} BTC  |  " +
+                          $"clear drains {CntB(Classify.Bucket.Drain)} / {SumB(Classify.Bucket.Drain):0.########} BTC  |  " +
+                          $"one-shot(test|drain) {CntB(Classify.Bucket.OneShot)} / {SumB(Classify.Bucket.OneShot):0.########} BTC");
+
         Console.WriteLine();
         Console.WriteLine("compromise events by classification:");
         foreach (var g in events.GroupBy(e => e.Classification).OrderByDescending(g => g.Count()))
@@ -434,6 +465,24 @@ file static class Analyze
         }
 
         return 0;
+    }
+
+    // Per-address minimum funding→spend latency (days), from the node-walk latencies TSV.
+    static Dictionary<string, int> ReadMinLatency(string path)
+    {
+        var d = new Dictionary<string, int>(StringComparer.Ordinal);
+        using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var sr = new StreamReader(fs);
+        bool header = true;
+        string? line;
+        while ((line = sr.ReadLine()) is not null)
+        {
+            if (header) { header = false; continue; }
+            var c = line.Split('\t');
+            if (c.Length < 4 || !int.TryParse(c[3], out int lat) || lat < 0) continue;
+            if (!d.TryGetValue(c[0], out int cur) || lat < cur) d[c[0]] = lat;
+        }
+        return d;
     }
 
     static int Pct(List<int> s, int p)
