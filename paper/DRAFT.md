@@ -209,12 +209,13 @@ bounds; sweeper population; the arrival-rate series. The classifier is implement
 > - **Target K (§7.6) — raw-key extension:** enumerating the periodic-fill (F1) and
 >   hex-word/single-byte-fill (F2) families as private keys *directly* adds **37**
 >   funded addresses (20 periodic, 16 single-byte, 1 hex-word), disjoint from the
->   mnemonic set — total **195** funded weak addresses. Target-K value is **dominated
->   ~98% by one deliberately-patterned address** (private key = the 20-bit unit
->   `0xFACED` repeated; 29.79 BTC received, confirmed on a public explorer), which we
->   do **not** classify as a victim absent provenance; excluding it leaves ~0.6 BTC
->   across 36 addresses. The contribution is the three newly-measured target-K
->   sub-families and their identical same-day-sweep behaviour — not the BTC total.
+>   mnemonic set — total **195**. Separating attacker drains from self-custody by
+>   *sweeper reach* (§7.6): only **79 of 195** funded addresses (~**1.81 BTC**) are
+>   drainer-swept; the other 106 (~31 BTC) pay single-use destinations. The target-K
+>   value is ~98% one `0xFACED`-repeat address whose flows are **self-directed, not a
+>   drain** (re-funded four times, change cycling back, single-use destinations). The
+>   contribution is the newly-measured key classes — not the BTC total, most of which
+>   is self-custody.
 > - **Loss / classification (§7.4):** **100 victims**, deposits **1.805 BTC ≈
 >   \$48,107 USD-at-transaction-time.** Deliberate/test: 7 published zero-entropy
 >   vectors (0.781 BTC), 46 sub-dust, 5 ambiguous. The victim/deliberate line for
@@ -287,23 +288,36 @@ disjoint from the mnemonic set:
 | Single-byte fills (F2) | 16 | 0.498 |
 | Hex-word fills (F2) | 1 | 0.047 |
 
-Two cautions bound the reading. First, **the aggregate is not representative**: a single
-address — private key = the 20-bit unit `0xFACED` repeated (P2PKH
-`19zngQtwXcqowdkbzAsYUfJdRqdwU2gt2X`, 29.79 BTC received, 7 txs, independently confirmed
-on a public explorer) — is ~98% of the target-K value; the remaining 36 addresses total
-~0.6 BTC. Second, a deliberately-patterned key like this is as plausibly a
-published/vanity/puzzle target (knowingly deposited to) as a broken-RNG victim, so we do
-not count it as a victim without provenance. The load-bearing results are therefore the
-**count** — 37 more funded weak addresses across three previously-unmeasured target-K
-sub-families — and that they exhibit the **same instant-sweep dynamics** as the mnemonic
-set (median 0-day latency). The clean small-value illustrations that these "joke" keys do
-get funded and drained in practice are `0x1111…` (0.41 BTC), `0xBBBB…` (0.065 BTC), and
-`deadbeef…` (0.047 BTC, funded and swept same day in 2012).
+**Not every spend is a theft.** Spending a weak UTXO is an attacker *sweep* only if the
+destination is a drainer; otherwise it is the key's owner moving their own funds. We
+separate the two by **sweeper reach**: a *drainer* destination empties **≥2 distinct**
+weak addresses (the bots of §7.5 reach 17/14/7/…), whereas a single-use destination is a
+self-custody candidate. Across all 195 funded weak addresses:
 
-**Proportion.** Even with the target-K extension, the population is 195 funded weak
-addresses over 17 years with ~15 fresh per year — negligible against total Bitcoin
-activity. The value here is the taxonomy of newly-observed key classes and the measured
-dynamics, not the magnitude of loss, which is small.
+| | Funded addrs | BTC received |
+| --- | --- | --- |
+| Drainer-swept (bot, ≥2 weak addrs) | 79 | 1.81 |
+| Single-use destination (self-custody candidate) | 106 | 31.16 |
+
+The genuine drainer population is **79 addresses holding ~1.81 BTC** — small, and it is
+where the same-day-sweep latency (§7.2) and concentrated-bot structure (§7.5) actually
+live. (This ~1.8 BTC matches the independent economic-classifier victim total of 1.805
+BTC, §7.4.) The 31 BTC of single-use value is dominated by the `0xFACED` address, which on
+inspection is **self-directed movement, not a drain**: it was re-funded and re-spent four
+times each over 2018-10-20…11-06 with funds cycling back after each spend (a working hub,
+not a victim emptied once and abandoned), its three spend destinations drain no other weak
+address, and it appears inside large multi-party transactions alongside P2SH multisig
+outputs — most consistent with a deliberately chosen vanity key (`0xFACED`) used as a
+temporary routing address. Target-K *value* is therefore not loss.
+
+The defensible target-K result is the **count**: 37 funded addresses across three
+previously-unmeasured raw-key sub-families, confirming these keys are used in practice —
+with most associated value self-custody and the attacker-swept subset small.
+
+**Proportion.** The genuine drainer-swept population is 79 weak addresses over 17 years
+(~1.8 BTC, ~15 fresh addresses/year) — negligible against total Bitcoin activity. The
+contribution is the taxonomy of newly-observed key classes and the drain dynamics on the
+small subset that is actually attacked, not any magnitude of loss, which is small.
 
 ## 8. The defense [HAVE design]
 
