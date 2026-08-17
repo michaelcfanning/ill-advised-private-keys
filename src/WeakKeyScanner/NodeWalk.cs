@@ -80,7 +80,7 @@ public static class NodeWalk
     {
         string? weakset = null;
         int from = -1, to = -1, checkpointEvery = 20_000, progressEvery = 5_000;
-        bool resume = false, dumpOnly = false;
+        bool resume = false, dumpOnly = false, resolveFunders = true;
         string cookie = @"E:\ill-advised\bitcoin\.cookie";
         string rpcUrl = "http://127.0.0.1:8332/";
         string label = "nodewalk";
@@ -98,6 +98,7 @@ public static class NodeWalk
                 case "--to": to = int.Parse(args[++i]); break;
                 case "--resume": resume = true; break;
                 case "--dump-only": dumpOnly = true; break;
+                case "--no-funders": resolveFunders = false; break;
                 case "--cookie": cookie = args[++i]; break;
                 case "--rpc": rpcUrl = args[++i]; break;
                 case "--label": label = args[++i]; break;
@@ -138,6 +139,7 @@ public static class NodeWalk
         Console.WriteLine($"weakset : {weakset}  ({weak.Count:N0} addresses)");
         Console.WriteLine($"node tip: {tip:N0}");
         Console.WriteLine($"threads : {threads} (prefetch producers)");
+        Console.WriteLine($"funders : {(resolveFunders ? "resolved (funder==sweeper self-test split)" : "off (--no-funders)")}");
 
         var state = new State();
         if (resume && File.Exists(ckptFile))
@@ -241,11 +243,15 @@ public static class NodeWalk
                     acc.Inbound++;
                     acc.First = Min(acc.First, db.Day);
                     acc.Last = Max(acc.Last, db.Day);
-                    // Funder side: who paid into this weak address. Only resolved here, on the
-                    // rare funding txs, so the extra prevout lookups are negligible. Lets the
-                    // classifier test funder == sweeper (self-test / self-custody).
-                    txFunders ??= ResolveFunders(rpc, tx, net);
-                    foreach (var fu in txFunders) acc.Funders.Add(fu);
+                    // Funder side: who paid into this weak address (input addresses of the
+                    // funding tx). Cheap when fundings are rare (mnemonic/target-K sets), but a
+                    // heavily-reused population (brainwallets: ~1M fundings) makes this the
+                    // consumer bottleneck — disable with --no-funders there.
+                    if (resolveFunders)
+                    {
+                        txFunders ??= ResolveFunders(rpc, tx, net);
+                        foreach (var fu in txFunders) acc.Funders.Add(fu);
+                    }
                     state.Utxo[$"{tx.Txid}:{vout}"] = new Utxo { Addr = addr, Sats = sats, FundTime = db.Day };
                     fundings++;
                 }
