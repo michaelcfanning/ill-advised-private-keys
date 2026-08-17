@@ -35,13 +35,23 @@ public static class Classify
     public const int ActiveInbound = 2;   // re-funded ≥ this many times ⇒ active wallet
     public const int ActiveHoldDays = 7;  // or held at least this long
 
-    public enum Bucket { Live, CustodyLatency, Drain, CustodyActive, OneShot }
+    public enum Bucket { Live, CustodyLatency, Drain, CustodyActive, OneShot, SelfTest }
 
     /// <param name="maxReach">Max, over this finding's sweepers, of the distinct weak
     /// addresses that sweeper drained (1 = single-use destination).</param>
     /// <param name="minLatencyDays">Min funding→spend latency for this address, or null if
     /// no per-sweep latency is available (then a same-day activity window is the proxy).</param>
-    public static Bucket Of(Finding f, int maxReach, int? minLatencyDays)
+    /// <param name="funderIsSweeper">True if an address that funded this weak address also
+    /// swept it — the same entity in and out, so a self-test / self-move, not theft. Only the
+    /// theft-suspect buckets (Drain, OneShot) are rescued to <see cref="Bucket.SelfTest"/>.</param>
+    public static Bucket Of(Finding f, int maxReach, int? minLatencyDays, bool funderIsSweeper = false)
+    {
+        var b = Core(f, maxReach, minLatencyDays);
+        if (funderIsSweeper && b is Bucket.Drain or Bucket.OneShot) return Bucket.SelfTest;
+        return b;
+    }
+
+    private static Bucket Core(Finding f, int maxReach, int? minLatencyDays)
     {
         if (f.OutboundTxs == 0) return Bucket.Live;
         bool raced = minLatencyDays is int d ? d <= RacedMaxDays : HeldDays(f) == 0;
@@ -51,7 +61,7 @@ public static class Classify
         return Bucket.OneShot;
     }
 
-    public static bool IsCustody(Bucket b) => b is Bucket.CustodyLatency or Bucket.CustodyActive;
+    public static bool IsCustody(Bucket b) => b is Bucket.CustodyLatency or Bucket.CustodyActive or Bucket.SelfTest;
 
     public static int HeldDays(Finding f) =>
         DateTime.TryParse(f.FirstSeen, out var a) && DateTime.TryParse(f.LastSeen, out var b)
@@ -64,6 +74,7 @@ public static class Classify
         Bucket.Drain          => "drain — instant + serial collector (bot or sweep-tooling)",
         Bucket.CustodyActive  => "custody — instant but active (re-funded/held)",
         Bucket.OneShot        => "one-shot — instant, single-use (self-test OR quiet drain)",
+        Bucket.SelfTest       => "self-test — funder reclaimed own deposit (funder == sweeper)",
         _ => "?"
     };
 }

@@ -380,9 +380,12 @@ file static class Analyze
         var minLat = latPath is not null && File.Exists(latPath) ? ReadMinLatency(latPath) : null;
         int MaxReach(Finding f) => f.Sweepers.Length == 0 ? 0
             : f.Sweepers.Max(s => sweeperReach.TryGetValue(s, out var set) ? set.Count : 0);
+        bool FunderIsSweeper(Finding f) => f.Funders.Length > 0 && f.Sweepers.Length > 0
+            && f.Funders.Intersect(f.Sweepers, StringComparer.Ordinal).Any();
         var byBucket = findings
             .Select(f => (f, b: Classify.Of(f, MaxReach(f),
-                minLat is not null && minLat.TryGetValue(f.Address, out var d) ? d : (int?)null)))
+                minLat is not null && minLat.TryGetValue(f.Address, out var d) ? d : (int?)null,
+                FunderIsSweeper(f))))
             .GroupBy(x => x.b)
             .ToDictionary(g => g.Key, g => g.ToList());
 
@@ -390,7 +393,7 @@ file static class Analyze
         Console.WriteLine("disposition (raced = attacker sweep vs custody = owner-moved):");
         if (minLat is null)
             Console.WriteLine("  (no --latencies given: using a same-day activity window as the race proxy)");
-        foreach (var b in new[] { Classify.Bucket.Drain, Classify.Bucket.OneShot,
+        foreach (var b in new[] { Classify.Bucket.Drain, Classify.Bucket.OneShot, Classify.Bucket.SelfTest,
                                   Classify.Bucket.CustodyActive, Classify.Bucket.CustodyLatency, Classify.Bucket.Live })
         {
             if (!byBucket.TryGetValue(b, out var list)) continue;
@@ -401,8 +404,8 @@ file static class Analyze
             .SelectMany(b => byBucket.TryGetValue(b, out var l) ? l : new())
             .Sum(x => x.f.TotalReceivedSats) / 100_000_000m;
         int CntB(params Classify.Bucket[] bs) => bs.Sum(b => byBucket.TryGetValue(b, out var l) ? l.Count : 0);
-        Console.WriteLine($"  custody {CntB(Classify.Bucket.CustodyLatency, Classify.Bucket.CustodyActive)} addrs / " +
-                          $"{SumB(Classify.Bucket.CustodyLatency, Classify.Bucket.CustodyActive):0.########} BTC  |  " +
+        var custodyB = new[] { Classify.Bucket.CustodyLatency, Classify.Bucket.CustodyActive, Classify.Bucket.SelfTest };
+        Console.WriteLine($"  custody {CntB(custodyB)} addrs / {SumB(custodyB):0.########} BTC  |  " +
                           $"clear drains {CntB(Classify.Bucket.Drain)} / {SumB(Classify.Bucket.Drain):0.########} BTC  |  " +
                           $"one-shot(test|drain) {CntB(Classify.Bucket.OneShot)} / {SumB(Classify.Bucket.OneShot):0.########} BTC");
 

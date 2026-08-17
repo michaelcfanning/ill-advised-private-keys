@@ -42,6 +42,7 @@ public static class NodeWalk
         public string? First { get; set; }
         public string? Last { get; set; }
         public HashSet<string> Sweepers { get; set; } = new(StringComparer.Ordinal);
+        public HashSet<string> Funders { get; set; } = new(StringComparer.Ordinal);
     }
 
     private sealed class Utxo
@@ -229,6 +230,7 @@ public static class NodeWalk
                     }
                 }
 
+                List<string>? txFunders = null;   // resolved once per funding tx, reused across its weak outputs
                 foreach (var (vout, addr, sats) in tx.Outputs)
                 {
                     if (addr is null || !weak.TryGetValue(addr, out var meta)) continue;
@@ -239,6 +241,11 @@ public static class NodeWalk
                     acc.Inbound++;
                     acc.First = Min(acc.First, db.Day);
                     acc.Last = Max(acc.Last, db.Day);
+                    // Funder side: who paid into this weak address. Only resolved here, on the
+                    // rare funding txs, so the extra prevout lookups are negligible. Lets the
+                    // classifier test funder == sweeper (self-test / self-custody).
+                    txFunders ??= ResolveFunders(rpc, tx, net);
+                    foreach (var fu in txFunders) acc.Funders.Add(fu);
                     state.Utxo[$"{tx.Txid}:{vout}"] = new Utxo { Addr = addr, Sats = sats, FundTime = db.Day };
                     fundings++;
                 }
@@ -315,6 +322,41 @@ public static class NodeWalk
         }
     }
 
+    /// <summary>
+    /// Funder addresses of a funding tx = the addresses that paid its inputs, resolved via
+    /// prevout lookup (getrawtransaction; needs txindex). Called only on the rare txs paying a
+    /// weak address, so the extra RPC is negligible. A coinbase funding has no prevouts — its
+    /// "funder" is the miner, tagged "coinbase".
+    /// </summary>
+    private static List<string> ResolveFunders(RPCClient rpc, DecodedTx tx, Network net)
+    {
+        var funders = new List<string>();
+        if (tx.IsCoinbase) { funders.Add("coinbase"); return funders; }
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var (ph, pn) in tx.Inputs)
+        {
+            try
+            {
+                var ptx = GetTx(rpc, ph);
+                if (ptx is null || pn >= (uint)ptx.Outputs.Count) continue;
+                var a = Addr(ptx.Outputs[(int)pn].ScriptPubKey, net);
+                if (a is not null && seen.Add(a)) funders.Add(a);
+            }
+            catch { }
+        }
+        return funders;
+    }
+
+    private static Transaction? GetTx(RPCClient rpc, string txid)
+    {
+        for (int attempt = 1; ; attempt++)
+        {
+            try { return rpc.GetRawTransaction(uint256.Parse(txid)); }
+            catch when (attempt < 4) { Thread.Sleep(150 * attempt); }
+            catch { return null; }
+        }
+    }
+
     private static void WriteFindings(State state, string label, string outFile)
     {
         using var w = new FindingsWriter(outFile);
@@ -335,7 +377,7 @@ public static class NodeWalk
                 OutboundTxs: a.Outbound,
                 FirstSeen: a.First,
                 LastSeen: a.Last,
-                Funders: Array.Empty<string>(),        // funder side needs prevout resolution; deferred
+                Funders: a.Funders.ToArray(),          // input addresses of the funding tx(s)
                 Sweepers: a.Sweepers.ToArray(),
                 ExplorerUrl: Explorers.Address(addr));
             w.Write(f);
