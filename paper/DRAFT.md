@@ -192,6 +192,20 @@ deposit- and sweep-time; the attacker profitability threshold; unique-victim
 bounds; sweeper population; the arrival-rate series. The classifier is implemented
 (`analyze --events`); loss is reported three ways (victims / +ambiguous / all).
 
+**Separating seeded activity from organic use.** A single actor can manufacture what
+looks like widespread adoption. In August 2013, one campaign funded 17,108 known-weak
+brainwallet addresses with an identical 5,460 sats each — ten times the dust limit — from
+34 batched funder addresses, and never reclaimed them: a seeding experiment, not 17,108
+users. Counting funded *addresses* would fold that single campaign into user prevalence,
+so we report prevalence by distinct weak key and by value distribution, and hold
+seeded/honeypot-style clusters — many addresses funded in a narrow window with identical
+amounts from a small funder set, left unreclaimed — separate from organic funding. This is
+routine data hygiene, not a novel step, but it is load-bearing here: with the separation
+our organic brainwallet count is of the same order as the earlier brainwallet study's,
+while the raw funded-address total is roughly an order of magnitude larger. Where a count
+omits the separation, an address-based total and a key-based total are not comparable, and
+we prefer the latter throughout.
+
 ## 7. Results
 
 > **Complete node-walk result — full chain, 2009→2026.** Scope: the mnemonic-pattern
