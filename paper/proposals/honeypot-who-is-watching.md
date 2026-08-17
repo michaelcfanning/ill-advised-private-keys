@@ -95,6 +95,59 @@ the **live coverage frontier** of the sweeper ecosystem" — measured, not infer
 It also lets us state the `backward`/`stride` nulls precisely: not "unused" but
 "[covered | not covered] by watchers as of <date>."
 
+## Observed prior art: the August 2013 seeding campaign
+
+Our passive brainwallet walk surfaced what looks like this exact experiment, already
+run in 2013 and still fully visible on-chain. Facts (from `brain.preview.findings.jsonl`,
+funders resolved):
+
+- **17,108 brainwallet addresses**, every one first-funded in **August 2013** — a single
+  burst, not a trickle.
+- Each seeded with **exactly 5,460 sats = 546 (the P2PKH dust limit) × 10** — a
+  deliberate, dust-limit-aware "just above dust" marker.
+- Funded from **34 addresses, ~500 seedings each** — programmatic batching from one wallet.
+- **Never reclaimed** by the funders (0 funder/sweeper overlap): the money was left to be
+  taken.
+- Swept by the **same industrial drainer bots** we see elsewhere (top one took 2,563 of
+  them; 3,887 distinct sweepers).
+
+**Reading (speculative, labelled):** a ~0.93 BTC (≈ **$100 at Aug-2013 prices**) honeypot /
+measurement experiment — seed thousands of known-weak addresses with cheap markers and
+watch *who sweeps them, how fast*. Not reclaiming is the tell of an *observer* (a
+self-tester takes it back). The timing sits in the FC16 "Bitcoin Brain Drain" era; the
+actor could be that team, a peer, or a curious hacker. This is prior art we can cite (§10),
+it validates the method, and it means our contribution is extension, not the core idea.
+**To tighten before publishing:** cluster the 34 funders to a common parent (single-actor
+confirmation, possible identity), and pin the exact days/blocks.
+
+## Budget model (costed 2026-08)
+
+The stake ceiling *is* the budget (ROE #2: expect total loss on swept arms). But unswept
+arms are **recoverable** — we hold the keys — so real loss ≈ (swept fraction) × stake.
+
+**Bait floor = current sweep fee.** A rational bot sweeps iff bait > its sweep cost. A
+legacy P2PKH sweep is ~192 vB; at today's **1–2 sat/vB** that is only **~200–400 sats**
+(~$0.15). Even a busy-day 30 sat/vB is ~5,760 sats (~$3.60). So the 2013 choice of 5,460
+sats still works, and today's low fees mean a null at low bait is *meaningful coverage
+data*, not just "not worth it." The bait tier is itself the threshold measurement: the
+lowest tier that still gets swept = the current profitability floor.
+
+**Cost = bait × arms + funding fees.** Funding fees are trivial now (~34 vB/output at
+1–2 sat/vB → seeding 60 outputs ≈ $3). At **BTC ≈ $63,500**:
+
+| Design | Arms | Bait each | Stake (ceiling) | ≈ USD |
+| --- | --- | --- | --- | --- |
+| Proposal as written (A–E + control) | 6 | 20,000 sats | 0.0012 BTC | **~$76** |
+| Coverage map (10 classes × 3 replicates) | 30 | 20,000 sats | 0.006 BTC | **~$380** |
+| Threshold-finding (10 cls × 3 tiers {2k/10k/50k} × 2) | 60 | tiered | 0.0124 BTC | **~$790** |
+| 2013-scale (unnecessary) | 17,000 | 20,000 sats | 3.4 BTC | ~$216k |
+
+So a **solid current-sweeper coverage map is ~$100–800 in stake**, with actual loss a
+fraction of that (recover the unwatched arms after the window). The 17k-scale replication
+is pointless — a few dozen targeted arms answer "who is watching which class, and what's
+the current fee floor" with the same power the 2013 flood had. Low fees right now make this
+an unusually cheap and clean window to run it — if approved with a stake ceiling.
+
 ## Decision
 
 - [ ] Approved, with stake ceiling: __________ and window: __________ (human sign-off)
