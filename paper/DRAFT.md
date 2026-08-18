@@ -230,11 +230,16 @@ we prefer the latter throughout.
 >   drain** (re-funded four times, change cycling back, single-use destinations). The
 >   contribution is the newly-measured key classes — not the BTC total, most of which
 >   is self-custody.
-> - **Loss / classification (§7.4):** **100 victims**, deposits **1.805 BTC ≈
->   \$48,107 USD-at-transaction-time.** Deliberate/test: 7 published zero-entropy
->   vectors (0.781 BTC), 46 sub-dust, 5 ambiguous. The victim/deliberate line for
->   repeated-single-word mnemonics is the main soft spot — some "victims" may be
->   undocumented test funds, so victim loss is an upper estimate.
+> - **Loss / classification (§7.4), four-actor split + USD-at-time:** applying the
+>   raced-vs-custody and researcher/user/larker/bad-guy classification (§7.6) to the 195
+>   funded addresses, **good-faith-victim loss is ≤ 1.03 BTC ≈ \$16k in the money of the
+>   day** (68 addresses, 61 keys) — an **upper** bound, since every key is
+>   dictionary-guessable and much drained value sits on trivially-weak strings that are as
+>   plausibly larks. Larker/deliberate (published test vectors): 0.78 BTC. Most funded
+>   *value* is **self-custody**, not loss — e.g. the `0xFACED` key's 29.79 BTC (≈ \$190k
+>   when it moved in 2018), owner-controlled. Value is extreme-concentrated (top-5 keys =
+>   96.6%, Gini 0.99). We report money-of-the-day; at today's price the same coins read
+>   ~100× larger and would misstate the harm.
 > - **Sweep latency (§7.2) — the headline:** median **0 days in every year 2015–2026**
 >   (n=386 sweeps, p90 = 1 day, max 279, mean 4.2). Funded weak addresses are drained
 >   the **same day**, essentially without exception.
@@ -506,7 +511,9 @@ section is populated automatically and left empty in the source.
 | Ever-funded target-K (F1/F2, full chain) | 37 addr (20 periodic, 16 byte, 1 hex-word) | HAVE | node.findings.jsonl (combined) |
 | Target-K received | 30.387 BTC (29.79 in one 0xFACED-repeat addr; ~0.6 BTC in other 36) | HAVE | analyze (combined) |
 | Combined funded weak addrs | 195 (158 target-E mnemonic + 37 target-K) | HAVE | node.findings.jsonl (combined) |
-| Victim loss (full chain) | 1.805 BTC ≈ $48,107 USD-at-time (100 victims) | HAVE | node walk + prices |
+| Good-faith-victim loss (mnemonic+target-K, actor split) | ≤ 1.03 BTC ≈ $16k money-of-day (68 addr, 61 keys; UPPER bound) | HAVE | analyze actor view + prices |
+| Self-custody value (not loss) | 30.77 BTC (dom. by 0xFACED ~$190k-at-move) | HAVE | analyze actor view |
+| Loss concentration | top-5 keys = 96.6% of value, Gini 0.99 | HAVE | analyze concentration |
 | Deliberate/test-vector | 0.781 BTC (7 zero-entropy vectors) + 46 sub-dust | HAVE | node walk |
 | Aggregate swept (all events) | 2.588 BTC ≈ $56,364 | HAVE | node.latencies.tsv |
 | Distinct drainers | 230 sweepers; top drained 17 / 14 / 7 weak addrs | HAVE | node walk |
