@@ -21,7 +21,7 @@ public static class EmitSet
         string pattern = "repeat";
         int wordCount = 12, from = 0, to = -1, words = 2048, indices = 1, width = 24;
         bool firstOnly = false, brain = false, raw = false, append = false;
-        bool? f1 = null, f2 = null;   // null = "not explicitly set"; defaults to both under --raw
+        bool f1 = false, f2 = false, f3 = false, f4 = false, f5 = false, f6 = false, f8 = false, allRaw = false;
         string? wordlist = null;
         string outFile = Path.Combine(AppContext.BaseDirectory, "out", "weakset.tsv");
 
@@ -41,6 +41,12 @@ public static class EmitSet
                 case "--width": width = int.Parse(args[++i]); break;
                 case "--f1": f1 = true; break;
                 case "--f2": f2 = true; break;
+                case "--f3": f3 = true; break;
+                case "--f4": f4 = true; break;
+                case "--f5": f5 = true; break;
+                case "--f6": f6 = true; break;
+                case "--f8": f8 = true; break;
+                case "--all-raw": allRaw = true; break;
                 case "--wordlist": wordlist = args[++i]; break;
                 case "--append": append = true; break;
                 case "--out": outFile = args[++i]; break;
@@ -54,12 +60,16 @@ public static class EmitSet
         var net = Network.Main;
         long n = 0;
 
-        // Under --raw, emit both raw families unless the caller named one explicitly.
-        bool doF1 = raw && (f1 ?? !(f2 ?? false));
-        bool doF2 = raw && (f2 ?? !(f1 ?? false));
+        // Under --raw: default (no family flag) = F1+F2; --all-raw = every family; else the named ones.
+        if (allRaw) f1 = f2 = f3 = f4 = f5 = f6 = f8 = true;
+        bool anyFam = f1 || f2 || f3 || f4 || f5 || f6 || f8;
+        bool doF1 = raw && (f1 || !anyFam), doF2 = raw && (f2 || !anyFam);
+        bool doF3 = raw && f3, doF4 = raw && f4, doF5 = raw && f5, doF6 = raw && f6, doF8 = raw && f8;
+        string rawFams = string.Join("+", new[] { (doF1, "F1"), (doF2, "F2"), (doF3, "F3"),
+            (doF4, "F4"), (doF5, "F5"), (doF6, "F6"), (doF8, "F8") }.Where(x => x.Item1).Select(x => x.Item2));
 
         string target = brain ? "brainwallet SHA256(pw)"
-            : raw ? $"raw target-K [{(doF1 ? $"F1 periodic fills w<={width}" : "")}{(doF1 && doF2 ? " + " : "")}{(doF2 ? "F2 hex-word/byte fills" : "")}]"
+            : raw ? $"raw target-K [{rawFams}{(doF1 ? $"; F1 w<={width}" : "")}]"
             : $"mnemonic {pattern}/{wordCount} words[{from},{toWord}) indices={indices} completions={(firstOnly ? "first" : "all")}";
 
         Console.WriteLine("ill-advised-private-keys — emit weak-key candidate set");
@@ -115,6 +125,11 @@ public static class EmitSet
             var families = new List<IEnumerable<RawCandidate>>();
             if (doF1) families.Add(RawKeyGenerator.PeriodicFills(width));
             if (doF2) families.Add(RawKeyGenerator.HexWordFills());
+            if (doF3) families.Add(RawKeyFamilies.Counters());
+            if (doF4) families.Add(RawKeyFamilies.SparseDense());
+            if (doF5) families.Add(RawKeyFamilies.AsciiPayloads(RawKeyFamilies.AsciiTokens));
+            if (doF6) families.Add(RawKeyFamilies.StructuredDecimal());
+            if (doF8) families.Add(RawKeyFamilies.NumsConstants());
 
             var writeLock = new object();
             foreach (var fam in families)
