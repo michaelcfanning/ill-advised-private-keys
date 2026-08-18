@@ -67,6 +67,118 @@ public static class Classify
         DateTime.TryParse(f.FirstSeen, out var a) && DateTime.TryParse(f.LastSeen, out var b)
             ? (int)Math.Round((b - a).TotalDays) : 0;
 
+    // ---- Four-actor view (researchers / general users / larkers / bad guys) ----
+    //
+    // The disposition above asks "was it raced." The actor view asks "who put the money
+    // there, and is a sweep a theft." Four actors show up on-chain:
+    //   * researchers — seed many weak addresses to study sweepers (a honeypot campaign);
+    //   * general users — a good-faith (if unwise) wallet: the only real victim if drained;
+    //   * larkers — deposit to a *famous* weak string as a stunt, the way people send to
+    //     Satoshi's address or privkey=1; a sweep here is self-inflicted, not victimhood;
+    //   * bad guys — the sweepers who take it all (reported as the drainer population).
+
+    public enum Actor { Honeypot, Lark, Victim, Custody, Unattributed, Live }
+
+    /// <param name="seeded">Address is part of a detected seeding cluster (researcher honeypot).</param>
+    /// <param name="famous">The weak key is a recognizable/famous string (larker, not victim).</param>
+    public static Actor ActorOf(Finding f, int maxReach, int? minLatencyDays, bool seeded, bool famous)
+    {
+        if (seeded) return Actor.Honeypot;
+        if (f.OutboundTxs == 0) return Actor.Live;
+        if (famous) return Actor.Lark;
+        bool raced = minLatencyDays is int d ? d <= RacedMaxDays : HeldDays(f) == 0;
+        if (!raced) return Actor.Custody;
+        if (maxReach >= DrainerMinReach) return Actor.Victim;
+        if (f.InboundTxs >= ActiveInbound || HeldDays(f) >= ActiveHoldDays) return Actor.Custody;
+        return Actor.Unattributed;
+    }
+
+    public static string ActorLabel(Actor a) => a switch
+    {
+        Actor.Honeypot     => "researcher / honeypot (seeding cluster)",
+        Actor.Lark         => "larker / deliberate (famous weak string)",
+        Actor.Victim       => "good-faith victim (drained)",
+        Actor.Custody      => "general user (custody, self-moved)",
+        Actor.Unattributed => "single-spend (unattributed)",
+        Actor.Live         => "live / unspent",
+        _ => "?"
+    };
+
+    /// <summary>
+    /// Addresses in a seeding/honeypot campaign: a large set (≥ minCluster) each funded once
+    /// with the *same* small amount in the same month — one actor seeding thousands, not
+    /// organic use. Detects any such campaign (e.g. the Aug-2013 5,460-sat run) without a
+    /// hardcoded amount. Funder counts would sharpen this but are not required.
+    /// </summary>
+    public static HashSet<string> SeedingClusters(IReadOnlyList<Finding> findings,
+        int minCluster = 100, long maxAmountSats = 100_000)
+    {
+        var groups = new Dictionary<(long, string), List<string>>();
+        foreach (var f in findings)
+        {
+            if (f.InboundTxs != 1 || f.TotalReceivedSats > maxAmountSats) continue;
+            string month = f.FirstSeen is { Length: >= 7 } ? f.FirstSeen[..7] : "?";
+            var key = (f.TotalReceivedSats, month);
+            (groups.TryGetValue(key, out var l) ? l : groups[key] = new()).Add(f.Address);
+        }
+        var seed = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var kv in groups)
+            if (kv.Value.Count >= minCluster)
+                foreach (var a in kv.Value) seed.Add(a);
+        return seed;
+    }
+
+    /// <summary>
+    /// A recognizable/famous weak string — a keyboard walk, a run, a repeat, something
+    /// trivially short, or a known-published key. A large deposit to one of these is more
+    /// plausibly a lark than a good-faith secret, so we treat it as deliberate rather than
+    /// victim. A transparent heuristic, reported alongside the un-flagged figure, never as a
+    /// precise line.
+    /// </summary>
+    public static bool IsRecognizable(string weakKey, ISet<string> denylist)
+    {
+        if (denylist.Contains(weakKey)) return true;
+        string t = weakKey.Trim().ToLowerInvariant();
+        if (t.Length is 0 or <= 4) return t.Length > 0;             // trivially short
+        if (AllSame(t) || IsRun(t) || IsRepeatedUnit(t) || IsKeyboardWalk(t)) return true;
+        return false;
+    }
+
+    private static bool AllSame(string t) { foreach (var c in t) if (c != t[0]) return false; return true; }
+
+    private static bool IsRun(string t)
+    {
+        bool up = true, down = true;
+        for (int i = 1; i < t.Length; i++) { if (t[i] != t[i - 1] + 1) up = false; if (t[i] != t[i - 1] - 1) down = false; }
+        return up || down;
+    }
+
+    private static bool IsRepeatedUnit(string t)
+    {
+        for (int u = 1; u <= t.Length / 2; u++)
+        {
+            if (t.Length % u != 0) continue;
+            bool ok = true;
+            for (int i = u; i < t.Length && ok; i++) if (t[i] != t[i % u]) ok = false;
+            if (ok) return true;
+        }
+        return false;
+    }
+
+    private static readonly string[] Rows =
+        { "qwertyuiop", "asdfghjkl", "zxcvbnm", "1234567890", "qwertyuiopasdfghjklzxcvbnm" };
+
+    private static bool IsKeyboardWalk(string t)
+    {
+        foreach (var r in Rows)
+        {
+            if (r.Contains(t)) return true;
+            var rev = new string(r.Reverse().ToArray());
+            if (rev.Contains(t)) return true;
+        }
+        return false;
+    }
+
     public static string Label(Bucket b) => b switch
     {
         Bucket.Live           => "live/unspent",

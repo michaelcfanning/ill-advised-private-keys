@@ -375,39 +375,66 @@ file static class Analyze
             Console.WriteLine($"  {g.Key,-12}  {funded,5} funded  {recv,16:0.########} BTC  {victims,5} victims");
         }
 
-        // ---- Disposition: raced (attacker sweep) vs custody (owner-moved) ----
-        // Latency-primary (a drain is a race), corroborated by sweeper reach and flow shape.
+        // ---- Actor view: researchers / general users / larkers / bad guys ----
+        // Disposition (raced-vs-custody) plus who deposited and whether a sweep is a theft.
+        // USD is valued at the deposit date (≈ sweep date for same-day drains), so loss reads
+        // in the money of the time, not today's price.
         var minLat = latPath is not null && File.Exists(latPath) ? ReadMinLatency(latPath) : null;
         int MaxReach(Finding f) => f.Sweepers.Length == 0 ? 0
             : f.Sweepers.Max(s => sweeperReach.TryGetValue(s, out var set) ? set.Count : 0);
-        bool FunderIsSweeper(Finding f) => f.Funders.Length > 0 && f.Sweepers.Length > 0
-            && f.Funders.Intersect(f.Sweepers, StringComparer.Ordinal).Any();
-        var byBucket = findings
-            .Select(f => (f, b: Classify.Of(f, MaxReach(f),
-                minLat is not null && minLat.TryGetValue(f.Address, out var d) ? d : (int?)null,
-                FunderIsSweeper(f))))
-            .GroupBy(x => x.b)
+        int? Lat(Finding f) => minLat is not null && minLat.TryGetValue(f.Address, out var d) ? d : (int?)null;
+        var seedSet = Classify.SeedingClusters(findings);
+        var (denyKeys, _) = Econ.SeedDenylist();
+        decimal UsdAt(Finding f) => px is null ? 0m : (px.Usd(f.FirstSeen) ?? 0m) * (f.TotalReceivedSats / 100_000_000m);
+
+        var byActor = findings
+            .Select(f => (f, a: Classify.ActorOf(f, MaxReach(f), Lat(f),
+                seedSet.Contains(f.Address), Classify.IsRecognizable(f.WeakKey, denyKeys))))
+            .GroupBy(x => x.a)
             .ToDictionary(g => g.Key, g => g.ToList());
 
         Console.WriteLine();
-        Console.WriteLine("disposition (raced = attacker sweep vs custody = owner-moved):");
-        if (minLat is null)
-            Console.WriteLine("  (no --latencies given: using a same-day activity window as the race proxy)");
-        foreach (var b in new[] { Classify.Bucket.Drain, Classify.Bucket.OneShot, Classify.Bucket.SelfTest,
-                                  Classify.Bucket.CustodyActive, Classify.Bucket.CustodyLatency, Classify.Bucket.Live })
+        Console.WriteLine("actor view (researchers / general users / larkers / bad guys):");
+        if (minLat is null) Console.WriteLine("  (no --latencies: same-day activity window used as the race proxy)");
+        Console.WriteLine($"  {"actor",-42}{"addrs",7}{"keys",7}{"BTC",13}" + (px is null ? "" : $"{"USD@time",14}"));
+        foreach (var a in new[] { Classify.Actor.Victim, Classify.Actor.Lark, Classify.Actor.Unattributed,
+                                  Classify.Actor.Custody, Classify.Actor.Honeypot, Classify.Actor.Live })
         {
-            if (!byBucket.TryGetValue(b, out var list)) continue;
-            decimal recv = list.Sum(x => x.f.TotalReceivedSats) / 100_000_000m;
-            Console.WriteLine($"  {list.Count,4}  {recv,16:0.########} BTC  {Classify.Label(b)}");
+            if (!byActor.TryGetValue(a, out var list)) continue;
+            int nkeys = list.Select(x => x.f.WeakKey).Distinct().Count();
+            decimal btc = list.Sum(x => x.f.TotalReceivedSats) / 100_000_000m;
+            string usd = px is null ? "" : $"{list.Sum(x => UsdAt(x.f)),14:C0}";
+            Console.WriteLine($"  {Classify.ActorLabel(a),-42}{list.Count,7:N0}{nkeys,7:N0}{btc,13:0.####}{usd}");
         }
-        decimal SumB(params Classify.Bucket[] bs) => bs
-            .SelectMany(b => byBucket.TryGetValue(b, out var l) ? l : new())
-            .Sum(x => x.f.TotalReceivedSats) / 100_000_000m;
-        int CntB(params Classify.Bucket[] bs) => bs.Sum(b => byBucket.TryGetValue(b, out var l) ? l.Count : 0);
-        var custodyB = new[] { Classify.Bucket.CustodyLatency, Classify.Bucket.CustodyActive, Classify.Bucket.SelfTest };
-        Console.WriteLine($"  custody {CntB(custodyB)} addrs / {SumB(custodyB):0.########} BTC  |  " +
-                          $"clear drains {CntB(Classify.Bucket.Drain)} / {SumB(Classify.Bucket.Drain):0.########} BTC  |  " +
-                          $"one-shot(test|drain) {CntB(Classify.Bucket.OneShot)} / {SumB(Classify.Bucket.OneShot):0.########} BTC");
+        Console.WriteLine("  (bad guys = the sweepers above; a sweep of honeypot or lark funds is not a victim loss)");
+
+        // ---- Loss concentration across passwords ----
+        var perKey = findings.GroupBy(f => f.WeakKey)
+            .Select(g => (Key: g.Key, Btc: g.Sum(f => f.TotalReceivedSats) / 100_000_000m,
+                          Usd: g.Sum(UsdAt), Famous: Classify.IsRecognizable(g.Key, denyKeys)))
+            .OrderByDescending(x => x.Btc).ToList();
+        decimal totBtc = perKey.Sum(x => x.Btc);
+        if (perKey.Count > 0 && totBtc > 0)
+        {
+            decimal maxBtc = perKey[0].Btc;
+            Console.WriteLine();
+            Console.WriteLine("loss concentration (received value per password, top 15):");
+            int rank = 0;
+            foreach (var x in perKey.Take(15))
+            {
+                rank++;
+                int bar = (int)Math.Round(28 * (double)(x.Btc / maxBtc));
+                string usd = px is null ? "" : $" {x.Usd,11:C0}@time";
+                Console.WriteLine($"  {rank,2} {new string('#', bar),-28} {x.Btc,9:0.####} BTC{usd}  {(x.Famous ? "[famous] " : "")}{Trunc(x.Key, 30)}");
+            }
+            decimal top5 = perKey.Take(5).Sum(x => x.Btc), top15 = perKey.Take(15).Sum(x => x.Btc);
+            decimal famousBtc = perKey.Where(x => x.Famous).Sum(x => x.Btc);
+            Console.WriteLine($"  top 5 = {top5 / totBtc:P1} of value | top 15 = {top15 / totBtc:P1} | Gini = {Gini(perKey.Select(x => x.Btc)):0.###}");
+            Console.WriteLine($"  structurally-famous (keyboard walks/runs/repeats) = {famousBtc / totBtc:P1} of value, " +
+                              $"{perKey.Count(x => x.Famous):N0}/{perKey.Count:N0} keys — a LOWER bound on larks.");
+            Console.WriteLine("  every password here is dictionary-guessable and value concentrates on trivially-weak strings,");
+            Console.WriteLine("  so 'good-faith victim' is an UPPER bound: the lark/victim intent is not resolvable per deposit.");
+        }
 
         Console.WriteLine();
         Console.WriteLine("compromise events by classification:");
@@ -486,6 +513,21 @@ file static class Analyze
             if (!d.TryGetValue(c[0], out int cur) || lat < cur) d[c[0]] = lat;
         }
         return d;
+    }
+
+    static string Trunc(string s, int n) => s.Length <= n ? s : s.Substring(0, n - 2) + "..";
+
+    // Gini coefficient of a value distribution (0 = even, →1 = all in one). Standard discrete
+    // form over ascending-sorted positive values.
+    static decimal Gini(IEnumerable<decimal> vals)
+    {
+        var xs = vals.Where(v => v > 0).OrderBy(v => v).ToList();
+        int n = xs.Count;
+        if (n == 0) return 0m;
+        decimal total = 0m; for (int i = 0; i < n; i++) total += xs[i];
+        if (total == 0m) return 0m;
+        decimal wsum = 0m; for (int i = 0; i < n; i++) wsum += (i + 1) * xs[i];
+        return (2m * wsum) / (n * total) - (decimal)(n + 1) / n;
     }
 
     static int Pct(List<int> s, int p)
