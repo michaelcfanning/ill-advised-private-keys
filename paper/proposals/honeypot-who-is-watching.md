@@ -148,6 +148,39 @@ is pointless — a few dozen targeted arms answer "who is watching which class, 
 the current fee floor" with the same power the 2013 flood had. Low fees right now make this
 an unusually cheap and clean window to run it — if approved with a stake ceiling.
 
+## Precondition: finish the passive enumeration first (gating)
+
+The honeypot's whole value is a **coverage map** across weak-key classes. We cannot mint an
+arm for a class we have not yet identified and validated on the passive side — an untested
+arm is an untested address type, and a null from it means nothing. So the honeypot is
+**gated on completing the class enumeration.** Do not fund any arm until the checklist below
+is either scanned or a deliberate, recorded "won't scan."
+
+**Coverage as of 2026-08-18** (passive ever-funded walk):
+
+| Class | Target | Status |
+| --- | --- | --- |
+| repeat / forward / backward | E (mnemonic entropy) | ✓ walked |
+| stride:k, cycle:2 | E | generator built, **not walked** |
+| F1 periodic fills (w ≤ 24) | K (raw key) | ✓ walked |
+| F2 hex-word / single-byte fills | K | ✓ walked |
+| F7 `SHA256(pw)` as **key** (classic brainwallet) | K | ✓ walked (CrackStation) |
+| **F7 `SHA256(pw)` as *entropy*** | E | **not done** — PATTERNS.md's "highest-value" novel family |
+| F3 counters / sequences | K & E | **not done** |
+| F4 sparse/dense, small integers, single-bit | K | **not done** (also a positive control) |
+| F5 ASCII payloads (string as key bytes, not hashed) | K | **not done** |
+| F6 structured decimal (dates, digits of π/e) | K & E | **not done** |
+| F8 nothing-up-my-sleeve constants | K & E | **not done** |
+| AI-composed memorable sentences / quotes | K & E | **not done** — new, AI-feasible |
+| Address-index depth | E | index 0 only (LIVE scan did 0–19, 0 hits) |
+
+**Confirmed swept classes (so an arm for them is a *positive control*, not a discovery):**
+single-byte fills (`0x11`, `0xbb`), `deadbeef` hex-fill, and `repeat`/`forward` mnemonics —
+all raced by serial-collector bots. **Apparently *un*-watched:** wide periodic fills (e.g.
+`0xFACED`), which show up only as self-custody. The honeypot's real question is the
+unscanned classes and the apparent blind spot — which is exactly why enumeration must finish
+first.
+
 ## Decision
 
 - [ ] Approved, with stake ceiling: __________ and window: __________ (human sign-off)
