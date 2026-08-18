@@ -20,7 +20,7 @@ public static class EmitSet
     {
         string pattern = "repeat";
         int wordCount = 12, from = 0, to = -1, words = 2048, indices = 1, width = 24;
-        bool firstOnly = false, brain = false, raw = false, append = false;
+        bool firstOnly = false, brain = false, raw = false, append = false, variants = false;
         bool f1 = false, f2 = false, f3 = false, f4 = false, f5 = false, f6 = false, f8 = false, allRaw = false;
         string? wordlist = null;
         string outFile = Path.Combine(AppContext.BaseDirectory, "out", "weakset.tsv");
@@ -37,6 +37,7 @@ public static class EmitSet
                 case "--completions": firstOnly = args[++i] == "first"; break;
                 case "--indices": indices = int.Parse(args[++i]); break;
                 case "--brain": brain = true; break;
+                case "--variants": variants = true; break;
                 case "--raw": raw = true; break;
                 case "--width": width = int.Parse(args[++i]); break;
                 case "--f1": f1 = true; break;
@@ -90,8 +91,13 @@ public static class EmitSet
             // fans out across cores. Order is irrelevant (nodewalk loads into a dict).
             long pws = 0, addrs = 0;
             var writeLock = new object();
+            // --variants expands each phrase into the casing/spacing/period forms a human might
+            // actually type (brainwallets are exact-string, so the form is the whole game).
+            IEnumerable<string> pwSource = variants
+                ? File.ReadLines(wordlist).Where(l => l.Trim().Length > 0).SelectMany(Variants)
+                : File.ReadLines(wordlist).Where(l => l.Length > 0);
             System.Threading.Tasks.Parallel.ForEach(
-                File.ReadLines(wordlist).Where(l => l.Length > 0),
+                pwSource,
                 () => new System.Text.StringBuilder(1 << 16),
                 (pw, _, local) =>
                 {
@@ -169,5 +175,47 @@ public static class EmitSet
 
         Console.WriteLine($"emitted {n:N0} addresses");
         return 0;
+    }
+
+    /// <summary>
+    /// The forms of a phrase a human might actually type as a brainwallet secret. Brainwallets
+    /// are exact-string, so a phrase corpus's yield is dominated by matching the *form*. We
+    /// cross two bases (original, and punctuation-stripped) with four casings (as-is / lower /
+    /// upper / Title), four word separators (space / none / underscore / hyphen), and the
+    /// with/without-trailing-period toggle; plus the first-letter **acronym** (the classic
+    /// "make a password from the initials of a sentence" trick), lower and upper. All deduped.
+    /// </summary>
+    public static IEnumerable<string> Variants(string phrase)
+    {
+        string p = phrase.Trim();
+        if (p.Length == 0) yield break;
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        string dep = System.Text.RegularExpressions.Regex.Replace(p, "[^A-Za-z0-9 ]", "");
+        dep = System.Text.RegularExpressions.Regex.Replace(dep, " +", " ").Trim();
+        var bases = new List<string> { p };
+        if (dep.Length > 0 && dep != p) bases.Add(dep);
+
+        foreach (var b in bases)
+        {
+            var words = b.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            string title = string.Join(" ", words.Select(w =>
+                char.ToUpperInvariant(w[0]) + w.Substring(1).ToLowerInvariant()));
+
+            foreach (var cased in new[] { b, b.ToLowerInvariant(), b.ToUpperInvariant(), title })
+                foreach (var sep in new[] { cased, cased.Replace(" ", ""), cased.Replace(" ", "_"), cased.Replace(" ", "-") })
+                {
+                    string noDot = sep.TrimEnd('.');
+                    foreach (var v in new[] { sep, noDot, noDot + "." })
+                        if (v.Length > 0 && seen.Add(v)) yield return v;
+                }
+
+            if (words.Length >= 2)   // first-letter acronym / initialism
+            {
+                string ac = new string(words.Select(w => w[0]).ToArray());
+                foreach (var v in new[] { ac.ToLowerInvariant(), ac.ToUpperInvariant() })
+                    if (seen.Add(v)) yield return v;
+            }
+        }
     }
 }
