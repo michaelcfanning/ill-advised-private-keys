@@ -189,7 +189,7 @@ public static class EmitSet
     {
         string p = phrase.Trim();
         if (p.Length == 0) yield break;
-        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var forms = new HashSet<string>(StringComparer.Ordinal);
 
         string dep = System.Text.RegularExpressions.Regex.Replace(p, "[^A-Za-z0-9 ]", "");
         dep = System.Text.RegularExpressions.Regex.Replace(dep, " +", " ").Trim();
@@ -207,15 +207,21 @@ public static class EmitSet
                 {
                     string noDot = sep.TrimEnd('.');
                     foreach (var v in new[] { sep, noDot, noDot + "." })
-                        if (v.Length > 0 && seen.Add(v)) yield return v;
+                        if (v.Length > 0) forms.Add(v);
                 }
 
             if (words.Length >= 2)   // first-letter acronym / initialism
             {
                 string ac = new string(words.Select(w => w[0]).ToArray());
-                foreach (var v in new[] { ac.ToLowerInvariant(), ac.ToUpperInvariant() })
-                    if (seen.Add(v)) yield return v;
+                forms.Add(ac.ToLowerInvariant());
+                forms.Add(ac.ToUpperInvariant());
             }
         }
+
+        // …and each form written backwards (a classic "clever" obfuscation).
+        foreach (var f in forms.ToList())
+            forms.Add(new string(f.Reverse().ToArray()));
+
+        foreach (var f in forms) yield return f;
     }
 }
