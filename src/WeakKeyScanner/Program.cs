@@ -5,8 +5,12 @@ using WeakKeyScanner;
 //
 //   (no args) | control      Positive-control test: the zero-entropy vector.
 //   selftest --set FILE      Prove the offline oracle can emit a true positive.
-//   analyze FILE [--events OUT]  Classify findings into compromise events (ECONOMICS.md).
+//   analyze FILE [--events OUT] [--latencies LAT]  Classify findings; adds per-family
+//                            prevalence and the sweep-latency distribution (ECONOMICS.md).
 //   bcscan --weakset F --dumps D  Ever-funded oracle: intersect weak addrs w/ Blockchair outputs.
+//   emit [options]           Serialize enumerated weak candidate addresses to a TSV (weakset producer).
+//                            --raw [--width W] [--f1] [--f2]  raw target-K fills (F1/F2); --append to accumulate.
+//   nodewalk --weakset F     Ever-funded + sweep index straight from local bitcoind (resumable).
 //   scan [options]           Enumerate repeated-word candidates and check funding.
 //
 // scan options:
@@ -33,16 +37,18 @@ if (args[0] == "scan")
 if (args[0] == "analyze")
 {
     if (args.Length < 2) { Console.Error.WriteLine("usage: analyze <findings.jsonl> [--events OUT.jsonl]"); return 2; }
-    string? eventsOut = null;
+    string? eventsOut = null, latPath = null, pricesPath = null;
     for (int i = 2; i < args.Length; i++)
     {
         switch (args[i])
         {
             case "--events": eventsOut = args[++i]; break;
+            case "--latencies": latPath = args[++i]; break;
+            case "--prices": pricesPath = args[++i]; break;
             default: Console.Error.WriteLine($"unknown option: {args[i]}"); return 2;
         }
     }
-    return Analyze.Run(args[1], eventsOut);
+    return Analyze.Run(args[1], eventsOut, latPath, pricesPath);
 }
 
 if (args[0] == "brainscan")
@@ -58,6 +64,16 @@ if (args[0] == "selftest")
 if (args[0] == "bcscan")
 {
     return BlockchairScan.Run(args);
+}
+
+if (args[0] == "emit")
+{
+    return EmitSet.Run(args);
+}
+
+if (args[0] == "nodewalk")
+{
+    return NodeWalk.Run(args);
 }
 
 Console.Error.WriteLine($"unknown command: {args[0]}");
@@ -299,7 +315,7 @@ file sealed record Options(
 
 file static class Analyze
 {
-    public static int Run(string path, string? eventsOut = null)
+    public static int Run(string path, string? eventsOut = null, string? latPath = null, string? pricesPath = null)
     {
         if (!File.Exists(path)) { Console.Error.WriteLine($"not found: {path}"); return 2; }
 
@@ -309,6 +325,8 @@ file static class Analyze
             .ToList();
 
         if (findings.Count == 0) { Console.WriteLine("no findings."); return 0; }
+
+        Prices? px = pricesPath is not null && File.Exists(pricesPath) ? Prices.Load(pricesPath) : null;
 
         // sweeper address -> distinct compromised addresses it drained
         var sweeperReach = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
@@ -345,6 +363,79 @@ file static class Analyze
         var (keys, addrs) = Econ.SeedDenylist();
         var events = findings.Select(f => Econ.ToEvent(f, keys, addrs)).ToList();
 
+        // ---- Per-family prevalence (family recovered from each mnemonic) ----
+        Console.WriteLine();
+        Console.WriteLine("prevalence by pattern family:");
+        var paired = findings.Zip(events, (f, e) => (f, e));
+        foreach (var g in paired.GroupBy(x => Family.Classify(x.f.WeakKey)).OrderByDescending(g => g.Count()))
+        {
+            int funded = g.Select(x => x.f.Address).Distinct().Count();
+            decimal recv = g.Sum(x => x.f.TotalReceivedSats) / 100_000_000m;
+            int victims = g.Count(x => x.e.Classification == "victim");
+            Console.WriteLine($"  {g.Key,-12}  {funded,5} funded  {recv,16:0.########} BTC  {victims,5} victims");
+        }
+
+        // ---- Actor view: researchers / general users / larkers / bad guys ----
+        // Disposition (raced-vs-custody) plus who deposited and whether a sweep is a theft.
+        // USD is valued at the deposit date (≈ sweep date for same-day drains), so loss reads
+        // in the money of the time, not today's price.
+        var minLat = latPath is not null && File.Exists(latPath) ? ReadMinLatency(latPath) : null;
+        int MaxReach(Finding f) => f.Sweepers.Length == 0 ? 0
+            : f.Sweepers.Max(s => sweeperReach.TryGetValue(s, out var set) ? set.Count : 0);
+        int? Lat(Finding f) => minLat is not null && minLat.TryGetValue(f.Address, out var d) ? d : (int?)null;
+        var seedSet = Classify.SeedingClusters(findings);
+        var (denyKeys, _) = Econ.SeedDenylist();
+        decimal UsdAt(Finding f) => px is null ? 0m : (px.Usd(f.FirstSeen) ?? 0m) * (f.TotalReceivedSats / 100_000_000m);
+
+        var byActor = findings
+            .Select(f => (f, a: Classify.ActorOf(f, MaxReach(f), Lat(f),
+                seedSet.Contains(f.Address), Classify.IsRecognizable(f.WeakKey, denyKeys))))
+            .GroupBy(x => x.a)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        Console.WriteLine();
+        Console.WriteLine("actor view (researchers / general users / larkers / bad guys):");
+        if (minLat is null) Console.WriteLine("  (no --latencies: same-day activity window used as the race proxy)");
+        Console.WriteLine($"  {"actor",-42}{"addrs",7}{"keys",7}{"BTC",13}" + (px is null ? "" : $"{"USD@time",14}"));
+        foreach (var a in new[] { Classify.Actor.Victim, Classify.Actor.Lark, Classify.Actor.Unattributed,
+                                  Classify.Actor.Custody, Classify.Actor.Honeypot, Classify.Actor.Live })
+        {
+            if (!byActor.TryGetValue(a, out var list)) continue;
+            int nkeys = list.Select(x => x.f.WeakKey).Distinct().Count();
+            decimal btc = list.Sum(x => x.f.TotalReceivedSats) / 100_000_000m;
+            string usd = px is null ? "" : $"{list.Sum(x => UsdAt(x.f)),14:C0}";
+            Console.WriteLine($"  {Classify.ActorLabel(a),-42}{list.Count,7:N0}{nkeys,7:N0}{btc,13:0.####}{usd}");
+        }
+        Console.WriteLine("  (bad guys = the sweepers above; a sweep of honeypot or lark funds is not a victim loss)");
+
+        // ---- Loss concentration across passwords ----
+        var perKey = findings.GroupBy(f => f.WeakKey)
+            .Select(g => (Key: g.Key, Btc: g.Sum(f => f.TotalReceivedSats) / 100_000_000m,
+                          Usd: g.Sum(UsdAt), Famous: Classify.IsRecognizable(g.Key, denyKeys)))
+            .OrderByDescending(x => x.Btc).ToList();
+        decimal totBtc = perKey.Sum(x => x.Btc);
+        if (perKey.Count > 0 && totBtc > 0)
+        {
+            decimal maxBtc = perKey[0].Btc;
+            Console.WriteLine();
+            Console.WriteLine("loss concentration (received value per password, top 15):");
+            int rank = 0;
+            foreach (var x in perKey.Take(15))
+            {
+                rank++;
+                int bar = (int)Math.Round(28 * (double)(x.Btc / maxBtc));
+                string usd = px is null ? "" : $" {x.Usd,11:C0}@time";
+                Console.WriteLine($"  {rank,2} {new string('#', bar),-28} {x.Btc,9:0.####} BTC{usd}  {(x.Famous ? "[famous] " : "")}{Trunc(x.Key, 30)}");
+            }
+            decimal top5 = perKey.Take(5).Sum(x => x.Btc), top15 = perKey.Take(15).Sum(x => x.Btc);
+            decimal famousBtc = perKey.Where(x => x.Famous).Sum(x => x.Btc);
+            Console.WriteLine($"  top 5 = {top5 / totBtc:P1} of value | top 15 = {top15 / totBtc:P1} | Gini = {Gini(perKey.Select(x => x.Btc)):0.###}");
+            Console.WriteLine($"  structurally-famous (keyboard walks/runs/repeats) = {famousBtc / totBtc:P1} of value, " +
+                              $"{perKey.Count(x => x.Famous):N0}/{perKey.Count:N0} keys — a LOWER bound on larks.");
+            Console.WriteLine("  every password here is dictionary-guessable and value concentrates on trivially-weak strings,");
+            Console.WriteLine("  so 'good-faith victim' is an UPPER bound: the lark/victim intent is not resolvable per deposit.");
+        }
+
         Console.WriteLine();
         Console.WriteLine("compromise events by classification:");
         foreach (var g in events.GroupBy(e => e.Classification).OrderByDescending(g => g.Count()))
@@ -362,6 +453,18 @@ file static class Analyze
         Console.WriteLine($"  victims + ambiguous   : {Loss("victim", "ambiguous"):0.########} BTC");
         Console.WriteLine($"  all events            : {events.Sum(e => e.DepositValueBtc):0.########} BTC");
 
+        if (px is not null)
+        {
+            decimal Usd(params string[] cls) => events
+                .Where(e => cls.Contains(e.Classification))
+                .Sum(e => (px.Usd(e.FirstSeen) ?? 0m) * e.DepositValueBtc);
+            Console.WriteLine();
+            Console.WriteLine($"USD loss basis (deposit valued at first-seen-date close; {px.Count:N0} daily prices):");
+            Console.WriteLine($"  victims only          : ${Usd("victim"):N0}");
+            Console.WriteLine($"  victims + ambiguous   : ${Usd("victim", "ambiguous"):N0}");
+            Console.WriteLine($"  all events            : ${events.Sum(e => (px.Usd(e.FirstSeen) ?? 0m) * e.DepositValueBtc):N0}");
+        }
+
         // Arrival series — the freshness signal (needs ever-funded first_seen to be
         // complete; here it is over the current finding set only).
         var arrivals = events
@@ -377,14 +480,98 @@ file static class Analyze
                 Console.WriteLine($"  {g.Key}  {new string('#', Math.Min(40, g.Count()))} {g.Count()}");
         }
 
+        if (latPath is not null && File.Exists(latPath))
+            ReportLatencies(latPath);
+
         if (eventsOut is not null)
         {
-            Econ.WriteEvents(events, eventsOut);
+            var toWrite = px is null ? events : events.Select(e =>
+                px.Usd(e.FirstSeen) is decimal u
+                    ? e with { DepositValueUsdAtDeposit = Math.Round(u * e.DepositValueBtc, 2) }
+                    : e).ToList();
+            Econ.WriteEvents(toWrite, eventsOut);
             Console.WriteLine();
-            Console.WriteLine($"compromise events written: {System.IO.Path.GetFullPath(eventsOut)} ({events.Count} records)");
+            Console.WriteLine($"compromise events written: {System.IO.Path.GetFullPath(eventsOut)} ({toWrite.Count} records)");
         }
 
         return 0;
+    }
+
+    // Per-address minimum funding→spend latency (days), from the node-walk latencies TSV.
+    static Dictionary<string, int> ReadMinLatency(string path)
+    {
+        var d = new Dictionary<string, int>(StringComparer.Ordinal);
+        using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var sr = new StreamReader(fs);
+        bool header = true;
+        string? line;
+        while ((line = sr.ReadLine()) is not null)
+        {
+            if (header) { header = false; continue; }
+            var c = line.Split('\t');
+            if (c.Length < 4 || !int.TryParse(c[3], out int lat) || lat < 0) continue;
+            if (!d.TryGetValue(c[0], out int cur) || lat < cur) d[c[0]] = lat;
+        }
+        return d;
+    }
+
+    static string Trunc(string s, int n) => s.Length <= n ? s : s.Substring(0, n - 2) + "..";
+
+    // Gini coefficient of a value distribution (0 = even, →1 = all in one). Standard discrete
+    // form over ascending-sorted positive values.
+    static decimal Gini(IEnumerable<decimal> vals)
+    {
+        var xs = vals.Where(v => v > 0).OrderBy(v => v).ToList();
+        int n = xs.Count;
+        if (n == 0) return 0m;
+        decimal total = 0m; for (int i = 0; i < n; i++) total += xs[i];
+        if (total == 0m) return 0m;
+        decimal wsum = 0m; for (int i = 0; i < n; i++) wsum += (i + 1) * xs[i];
+        return (2m * wsum) / (n * total) - (decimal)(n + 1) / n;
+    }
+
+    static int Pct(List<int> s, int p)
+    {
+        if (s.Count == 0) return 0;
+        int i = (int)Math.Ceiling(p / 100.0 * s.Count) - 1;
+        return s[Math.Clamp(i, 0, s.Count - 1)];
+    }
+
+    static void ReportLatencies(string path)
+    {
+        var days = new List<int>();
+        long swept = 0;
+        var byYear = new SortedDictionary<string, List<int>>(StringComparer.Ordinal);
+        bool header = true;
+        // FileShare.ReadWrite so a still-running nodewalk holding the file open
+        // doesn't block the read (and lets us peek at partial results mid-run).
+        using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+        using (var sr = new StreamReader(fs))
+        {
+            string? line;
+            while ((line = sr.ReadLine()) is not null)
+            {
+                if (header) { header = false; continue; }
+                var c = line.Split('\t');
+                if (c.Length < 5) continue;
+                if (int.TryParse(c[3], out int d) && d >= 0)
+                {
+                    days.Add(d);
+                    var yr = c[1].Length >= 4 ? c[1][..4] : "?";
+                    (byYear.TryGetValue(yr, out var l) ? l : byYear[yr] = new()).Add(d);
+                }
+                if (long.TryParse(c[4], out long v)) swept += v;
+            }
+        }
+        Console.WriteLine();
+        Console.WriteLine("sweep-latency distribution (days, funding -> first spend):");
+        if (days.Count == 0) { Console.WriteLine("  (no sweep events)"); return; }
+        days.Sort();
+        Console.WriteLine($"  n={days.Count:N0}  min={days[0]}  p25={Pct(days, 25)}  median={Pct(days, 50)}  " +
+                          $"p75={Pct(days, 75)}  p90={Pct(days, 90)}  max={days[^1]}  mean={days.Average():0.0}");
+        Console.WriteLine($"  swept value (sum of sweep events): {swept / 100_000_000m:0.########} BTC");
+        Console.WriteLine("  median latency by funding year:");
+        foreach (var (yr, l) in byYear) { l.Sort(); Console.WriteLine($"    {yr}  n={l.Count,6:N0}  median={Pct(l, 50)}d"); }
     }
 }
 

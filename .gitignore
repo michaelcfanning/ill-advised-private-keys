@@ -9,3 +9,10 @@ out/
 
 # Local funded-address sets (large, derived data)
 *.funded.txt
+
+# Paper build artifacts — regenerated from paper/*.md via pandoc; never commit.
+# (Ignore the generated outputs specifically, NOT all *.tex, so a future
+# hand-written LaTeX source can still be committed.)
+*.docx
+paper/DRAFT.tex
+paper/DRAFT.pdf

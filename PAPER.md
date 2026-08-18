@@ -1,10 +1,13 @@
 # Paper outline
 
-Working title: **The BIP-39 Brain Drain: Measuring Loss and Sweeping in the
-Memorable-Mnemonic Key Space.**
+Working title: **BIP-39 and the Bad Seeds — Into My Arms: Measuring Sweeping and
+Loss in the Weak-Mnemonic Key Space.** A nod to Nick Cave and the Bad Seeds
+(the project ships as `badseed`); read against the topic, "Into My Arms" is the
+swept funds falling into the drainer's arms. Carries the FC16 "Bitcoin Brain Drain"
+lineage without copying it.
 
-Alternate: *In Somebody's Dictionary: An Economic Measurement of Weak BIP-39
-Mnemonics and a Defense That Ships First.*
+Alternates: *The BIP-39 Brain Drain* (the FC16-lineage version); *In Somebody's
+Dictionary: An Economic Measurement of Weak BIP-39 Mnemonics.*
 
 This is the publication skeleton. Charter is [MISSION.md](MISSION.md), enumerable
 spaces are [PATTERNS.md](PATTERNS.md), and the economic methodology is
