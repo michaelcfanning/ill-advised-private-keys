@@ -208,6 +208,22 @@ deposit- and sweep-time; the attacker profitability threshold; unique-victim
 bounds; sweeper population; the arrival-rate series. The classifier is implemented
 (`analyze --events`); loss is reported three ways (victims / +ambiguous / all).
 
+**The sweep race taxes theft to miners.** Sweeping is effectively an all-pay fee auction:
+drainers race to spend a funded weak UTXO under replace-by-fee, so the winner bids much of
+the bait away in fees. Measuring each single-input sweep's fee against its bait (n=117 on the
+mnemonic+target-K funded set), the median transfer to miners is **16.5%**, concentrated where
+the genuine drains are: for baits below 0.01 BTC (n=103) the median is **28%** and the
+value-weighted share **16%** (tail to ~90%), while the few baits ≥ 0.01 BTC (n=14) lose only
+~1.3% — and those large, lightly-taxed sweeps are self-custody moves, not theft (§7.6). So the
+fee erosion falls hardest on the attacker's real take. Combined with a near-zero *marginal*
+cost of watching an already-enumerated space and a small, declining victim inflow (§7.3), this
+is an attacker economy that is **rational only because watching is nearly free** — any positive
+residual justifies continuing — while competition bids most of the small-drain value to miners;
+for new entrants the residual is plausibly negative, the early dominant bots having taken the
+large early hauls. It also sharpens the profitability threshold: below it a rational bot ignores
+the deposit, and *above* it the fee race still transfers a large share, so attacker-retained
+value is below the swept total on both sides.
+
 **Separating seeded activity from organic use.** A single actor can manufacture what
 looks like widespread adoption. In August 2013, one campaign funded 17,108 known-weak
 brainwallet addresses with an identical 5,460 sats each — ten times the dust limit — from
@@ -605,6 +621,7 @@ section is populated automatically and left empty in the source.
 | Good-faith-victim loss (mnemonic+target-K, actor split) | ≤ 1.03 BTC ≈ $16k money-of-day (68 addr, 61 keys; UPPER bound) | HAVE | analyze actor view + prices |
 | Self-custody value (not loss) | 30.77 BTC (dom. by 0xFACED ~$190k-at-move) | HAVE | analyze actor view |
 | Loss concentration | top-5 keys = 96.6% of value, Gini 0.99 | HAVE | analyze concentration |
+| Fee race → miners (single-input sweeps, n=117) | small drains (<0.01 BTC) median 28% / value-wtd 16% (tail ~90%); large ≥0.01 BTC ~1.3% | HAVE | mempool API |
 | Deliberate/test-vector | 0.781 BTC (7 zero-entropy vectors) + 46 sub-dust | HAVE | node walk |
 | Aggregate swept (all events) | 2.588 BTC ≈ $56,364 | HAVE | node.latencies.tsv |
 | Distinct drainers | 230 sweepers; top drained 17 / 14 / 7 weak addrs | HAVE | node walk |
