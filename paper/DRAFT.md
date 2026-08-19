@@ -15,7 +15,7 @@ it is [HAVE].
 
 ---
 
-## Abstract [FRAME — numbers DATA]
+## Abstract [HAVE]
 
 > Frame written; bracketed quantities stay `[DATA]` until measured, and no number
 > enters this paragraph before it is `[HAVE]` in the ledger.
@@ -31,13 +31,23 @@ enumerate the memorable-mnemonic space, derive addresses across the standard HD
 schemes (BIP-44/49/84/86, compressed and uncompressed), and measure — entirely
 read-only, with a tool that provably cannot move funds — how much value these keys
 ever held, how fast it was swept, how concentrated the drainers are, and, the
-question that governs disclosure, whether fresh victims still arrive. We find
-[the current-balance space swept clean: 0 hits across 150M derived addresses], and
-[DATA: ever-funded prevalence, median sweep latency, drainer concentration,
-arrival-rate verdict]. We ship the defense before the specifics: a non-blocking
-BIP-39 strength check and a poisoned-address denylist, contributed upstream. All
-code, the positive-control self-test that makes our null results trustworthy, and
-a fully auditable record of the authoring process accompany the paper.
+question that governs disclosure, whether fresh victims still arrive. We find the
+current-balance space swept clean (0 hits across 150M+ derived addresses) and, from a
+full ever-funded node walk, a **small and highly concentrated** historical loss:
+across the mnemonic-pattern and raw-key (target-K) populations, 195 funded weak
+addresses whose good-faith-victim loss is **at most about \$16,000 in the money of the
+day** — most funded *value* is self-custody or larks, not theft — while a replication
+of the `SHA256(password)` brainwallet family recovers **about 1,250 meaningfully-funded
+passwords** (the same order as the decade-old study it reproduces), with good-faith-victim
+loss of roughly **\$31,000 in the money of the day** (an upper bound). Sweeps are a race — median latency 0 days, a handful of bots
+doing the harvesting — and **no weak address we measured holds a live balance today**.
+Fresh fundings still arrive a decade on, which shapes disclosure. We report value in
+the money of the day, not today's price, and separate four actors — researchers,
+general users, larkers, bad guys — so self-custody and larks stay out of "loss." We
+ship the defense before the specifics: a non-blocking BIP-39 strength check and a
+poisoned-address denylist, contributed upstream. All code, the positive-control
+self-test that makes our null results trustworthy, and a fully auditable record of the
+authoring process accompany the paper.
 
 ## 1. Introduction [HAVE — prose drafted]
 
@@ -268,11 +278,18 @@ we prefer the latter throughout.
   and must be read from ever-funded state, not current balance.
 
 ### 7.2 Ever-funded prevalence and sweep latency [HAVE]
-Complete-chain node walk (index 0): **158 funded** weak addresses (127 `repeat`,
-31 `forward`; `backward`/`stride` 0), essentially all swept, 2.588 BTC drained in
-aggregate. Sweep-latency distribution: **median 0 days in every year 2015–2026**
-(n=386, p90 = 1 day, max 279) — funded weak addresses are drained the same day
-(Fig F1). The one live-balance address is the sole residual UTXO.
+Complete-chain node walk (index 0): **158 funded** weak addresses on the mnemonic side
+(127 `repeat`, 31 `forward`; `backward`/`stride` 0), plus 37 raw target-K addresses
+(§7.6) for **195 total**. Sweep-latency distribution: **median 0 days in every year
+2015–2026** (n=386, p90 = 1 day, max 279) — where a sweep happens it is same-day
+(Fig F1). The aggregate value that moved is 2.588 BTC on the mnemonic side, but that is
+*not* loss: applying the four-actor disposition (§7.6) — raced-vs-custody by sweep
+latency, plus sweeper reach — **most funded value is self-custody**, owner-moved rather
+than raced (dominated by one 0xFACED raw key holding ~30 BTC), and **good-faith-victim
+loss is at most 1.03 BTC ≈ \$16k in the money of the day** (68 addresses, 61 keys; an
+upper bound, since every key is dictionary-guessable). No address holds a live balance
+today (two residual dust UTXOs of 546 and 1,000 sats). All four columns per class —
+addresses, distinct keys, raw BTC, and value-at-time — are in Table T-actor.
 
 ### 7.3 Freshness — do victims still arrive? [HAVE]
 Yes. Victim/ambiguous first-fundings are **sustained, not declining**: 13 (2021),
@@ -293,7 +310,7 @@ set is **concentrated**: the top drainer swept **17** distinct weak addresses, t
 next 14, then 7/6/6 (Fig F3). Combined with the same-day latency (§7.2), this is
 automated harvesting by a handful of bots, not incidental collection.
 
-### 7.6 Raw target-K families (F1/F2) — first funded measurement [DATA]
+### 7.6 Raw target-K families (F1/F2) — first funded measurement [HAVE]
 The §7.2 walk covered target E (BIP-39 entropy). We then enumerated the raw-key side
 (target K, §2) over the same full chain: the periodic-fill family F1 (every repeating
 unit ≤ 24 bits — 33.5M units) and the hex-word/single-byte-fill family F2, each imported
@@ -337,6 +354,31 @@ with most associated value self-custody and the attacker-swept subset small.
 (~1.8 BTC, ~15 fresh addresses/year) — negligible against total Bitcoin activity. The
 contribution is the taxonomy of newly-observed key classes and the drain dynamics on the
 small subset that is actually attacked, not any magnitude of loss, which is small.
+
+### 7.7 Brainwallet replication on ever-funded data [HAVE]
+The `SHA256(password)`-as-key family is the closest prior art (§10), so we reproduce it on
+full ever-funded chain data rather than the current-balance set of §7.1. Deriving from
+CrackStation (63.9M passwords → 127.9M addresses) and walking the whole chain gives **18,592
+funded addresses, 0 live**. The raw count is inflated by one 2013 seeding campaign (§6); the
+*organic* population — passwords funded ≥ 10k sats — is **≈1,249**, the same order as the 884
+the original study reported, so this is a replication and modest extension, not a new headline.
+Value is extreme-concentrated (top-5 passwords = 64%, Gini 0.99) on trivially-guessable strings
+(`asdfghjkloiuytrewq`, `deadsheep`, keyboard walks, a pangram) that are as plausibly larks as
+good-faith wallets. Valued in the money of the day (deposit ≈ sweep for same-day drains), the
+four-actor split is:
+
+| Actor | Addrs | Keys | BTC raw | USD @ time |
+| --- | ---: | ---: | ---: | ---: |
+| Good-faith victim (drained) | 610 | 596 | 76.69 | \$30,796 |
+| Larker / deliberate (famous string) | 282 | 261 | 22.30 | \$12,508 |
+| Single-spend (unattributed) | 104 | 103 | 12.23 | \$15,311 |
+| General user (custody, self-moved) | 519 | 519 | 18.15 | \$4,535 |
+| Researcher / honeypot (2013 seed) | 17,077 | 17,077 | 0.93 | \$116 |
+
+So the raw 96 BTC of "drains" is worth **≈\$31k of good-faith-victim loss at the time** (upper
+bound), the value sitting on a handful of guessable strings; a concentrated set of bots does the
+harvesting (top drainer reached thousands of addresses). The larger-looking BTC totals are
+self-custody, larks, or one 2013 experiment — not theft.
 
 ## 8. The defense [HAVE design]
 
@@ -459,18 +501,22 @@ our strength check aims to catch.
 Deliberate-deposit contamination; lower-bound framing (only enumerated patterns);
 clustering error; selection/survivorship; price model; mempool blindness.
 
-## 12. Conclusion [FRAME — verdict DATA]
+## 12. Conclusion [HAVE]
 
 Memorable BIP-39 seeds are weak in the one way a checksum cannot catch, and the
 addresses they produce sit in the same dark forest that emptied the brainwallets
 before them. We measured that this population's *current* balance is effectively
-zero — [0 hits across 150M derived addresses] — which is not safety but the
-signature of a space swept continuously; the loss is historical and lives in
-ever-funded state, not present balance. [DATA: the headline — ever-funded value
-lost, median sweep latency, drainer concentration — and the freshness verdict:
-whether first-fundings of weak addresses are still occurring, which determines
-whether this is a post-mortem or an ongoing harm.] Either way the defensive
-conclusion is the same and shippable now: form-validity is the wrong gate, so
+zero (0 hits across 150M+ derived addresses) — not safety but the signature of a
+space swept continuously; the loss is historical and lives in ever-funded state, not
+present balance. Read from that state, the loss is **real but small and highly
+concentrated**: good-faith-victim loss is on the order of tens of thousands of dollars
+in the money of the day across every family we measured, most funded value is
+self-custody or larks rather than theft, sweeps are same-day races run by a handful of
+bots, and no weak address holds a live balance today. Fresh fundings still arrive a
+decade on, so this is **ongoing, not a post-mortem** — which is what licenses a careful
+disclosure posture. The magnitude is modest; the contribution is the taxonomy of
+memorable-key classes and the four-actor method that keeps self-custody and larks out of
+"loss." Either way the defensive conclusion is the same and shippable now: form-validity is the wrong gate, so
 libraries should measure entropy strength and wallets should warn on import, and
 the poisoned-address denylist lets the ecosystem refuse known-bad seeds without
 anyone needing to enumerate them. We ship those first; we disclose specifics only
