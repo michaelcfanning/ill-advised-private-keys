@@ -97,8 +97,11 @@ It also lets us state the `backward`/`stride` nulls precisely: not "unused" but
 
 ## Observed prior art: the August 2013 seeding campaign
 
-Our passive brainwallet walk surfaced what looks like this exact experiment, already
-run in 2013 and still fully visible on-chain. Facts (from `brain.preview.findings.jsonl`,
+**FC16 already documented this** (Vasek et al. 2016, footnote 14): they excluded 17,784
+brain wallets "suddenly assigned a tiny amount of bitcoin from 36 linked input addresses
+within a few hours on August 31, 2013," which they "strongly suspect were set up by a
+researcher." Our passive walk re-detects the same event independently (below); it is prior
+art for the honeypot method, not our discovery. Facts (from `brain.preview.findings.jsonl`,
 funders resolved):
 
 - **17,108 brainwallet addresses**, every one first-funded in **August 2013** — a single

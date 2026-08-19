@@ -107,10 +107,11 @@ driven decision governed by the disclosure tiers in §9.
 1. A read-only, funded-then-swept measurement across the memorable-mnemonic (target E)
    population, the raw-key (target K) families, and the `SHA256(pw)`-as-BIP-39-entropy
    family (F7) — keys prior brainwallet studies did not cover.
-2. A **funder-intent classification** that separates genuine victims from deliberate,
-   honeypot, self-custody, and "lark" deposits — the first such split in this line — valued
-   in the money of the day. It shows the honest good-faith-victim loss is small and highly
-   concentrated, most funded value being self-custody or larks rather than theft.
+2. A **reproducible funder-intent classifier** — researcher/honeypot, general-user custody,
+   larks, and genuine victims — that turns the manual researcher/owner exclusions of prior
+   brainwallet work into a coded, uniform split and applies it to the new key populations. It
+   shows the honest good-faith-victim loss is small and highly concentrated, most funded value
+   being self-custody or larks rather than theft.
 3. A novel **attacker-economics** result: sweeping is an all-pay fee auction that taxes a
    large share of each small drain to miners, so watching is rational only because an
    enumerated space is near-free to monitor — net drainer profit is marginal and declining.
@@ -238,7 +239,8 @@ value is below the swept total on both sides.
 looks like widespread adoption. In August 2013, one campaign funded 17,108 known-weak
 brainwallet addresses with an identical 5,460 sats each — ten times the dust limit — from
 34 batched funder addresses, and never reclaimed them: a seeding experiment, not 17,108
-users. Counting funded *addresses* would fold that single campaign into user prevalence,
+users. (This is the same Aug-2013 campaign FC16 documented and excluded as researcher-run
+[@vasek2016braindrain]; we detect it independently and exclude it the same way.) Counting funded *addresses* would fold that single campaign into user prevalence,
 so we report prevalence by distinct weak key and by value distribution, and hold
 seeded/honeypot-style clusters — many addresses funded in a narrow window with identical
 amounts from a small funder set, left unreclaimed — separate from organic funding. This is
@@ -521,11 +523,18 @@ Our approach descends from a decade of weak-key measurement and reuses its metho
 we follow — enumerate a weak subspace, then scan the real world for keys that fall
 in it — for network-device keys; we apply the same shape to Bitcoin key
 derivation. On-chain, Vasek et al.'s *Bitcoin Brain Drain* [@vasek2016braindrain]
-is our closest methodological ancestor: they measured `SHA256(password)`
-brainwallets (884 wallets, 2011–2015, all but 21 emptied, median 21 minutes, about
-a dozen competing drainers), and we reuse their instruments — sweep latency,
-repeated-drain-per-family inference, compressed/uncompressed fan-out — for BIP-39
-mnemonic-pattern keys and `SHA256(pw)`-as-BIP-39-entropy (F7). Castellucci's
+is our closest methodological ancestor. They measured `SHA256(password)` brainwallets
+(884 wallets in use, 2011–2015, all but 21 emptied, median 21 minutes, about a dozen
+competing drainers), and — importantly — already classified funder/drainer intent:
+they excluded a researcher-run seeding campaign (17,784 wallets suddenly funded from
+36 linked inputs on 31 Aug 2013) and a 2015 network stress test, distinguished
+owner-initiated from attacker drains, and valued losses at the day's exchange rate. We
+reuse their instruments — sweep latency, repeated-drain inference, compressed/
+uncompressed fan-out, at-time valuation, and researcher/honeypot exclusion — and
+*extend* them to key populations they did not cover (BIP-39 mnemonic patterns, the raw
+target-K families, and `SHA256(pw)`-as-BIP-39-entropy, F7), across the full chain to
+2026. The Aug-2013 seeding campaign we detect independently (34 linked funders) is the
+same event they documented. Castellucci's
 `brainflayer` and DEF CON 23 talk [@castellucci2015brainflayer] are the offensive
 counterpart, and the Ethercombing / "Blockchain Bandit" scan of weak Ethereum keys
 [@ise2019ethercombing] exhibits the same drainer-cluster concentration we analyze
@@ -543,14 +552,14 @@ the same, so the measurement carries over.
 [@milksad2026update16] catalogs ever-funded classic brainwallets (SHA256-as-key);
 it documents prevalence but does not report the sweep-latency, drainer-
 concentration, or arrival-rate dynamics we focus on, and does not cover the BIP-39
-mnemonic or F7 populations. It also, like the Ethercombing scan
-[@ise2019ethercombing] — which characterizes the *drainer* rather than the funder —
-does not classify *why* funds arrived at a weak address. Separating genuine victims
-from deliberate, honeypot, self-custody, and "lark" deposits is, to our knowledge,
-first done here (§7.6): an unfiltered funded-address count is dominated by one 2013
-seeding campaign and by self-custody, so the four-actor split is what lets us report a
-good-faith-victim loss (an upper bound) distinct from that much larger non-victim
-value — and value it in the money of the day rather than at today's price. Zhou et al. [@zhou2024keyleakage] measure theft from
+mnemonic or F7 populations. It also drops the funder-intent classification FC16 introduced: it tallies
+ever-funded brainwallets without separating researcher, owner, or attacker activity,
+as does the Ethercombing scan [@ise2019ethercombing], which characterizes the
+*drainer* rather than the funder. Our four-actor split (§7.6) turns FC16's manual,
+case-by-case exclusions into a reproducible classifier — researcher/honeypot,
+general-user custody, larks, and genuine victims — applied uniformly across the
+mnemonic and target-K populations; without it, an unfiltered funded-address count is
+dominated by seeding campaigns and self-custody. Zhou et al. [@zhou2024keyleakage] measure theft from
 keys leaked on websites, on Ethereum — a different key source in the same spirit of
 characterizing real losses. Two practitioner efforts bracket our families without
 measuring their outcomes: Lopp [@lopp2024repeatedword] enumerates the repeated-word
