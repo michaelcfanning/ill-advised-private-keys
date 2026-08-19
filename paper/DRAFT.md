@@ -178,6 +178,12 @@ Table T2.
 
 ## 5. Measurement infrastructure [HAVE]
 
+Because a hashed key is indistinguishable from random (§8), the chain cannot be audited for
+"weak-looking" keys directly — a brainwallet key looks perfect. The only available method is
+to **enumerate the plausible low-entropy inputs, derive forward across the address fan-out,
+and intersect with chain activity.** The opacity is not incidental; it is why enumerate-and-
+intersect is the sole approach, and it is what the scanner implements.
+
 The scanner (`src/WeakKeyScanner`, .NET 10 / NBitcoin):
 - Derivation fan-out: BIP-44/49/84/86, compressed + uncompressed, P2PKH/P2SH-P2WPKH/
   P2WPKH/P2TR; brainwallet SHA256(pw) P2PKH.
@@ -382,10 +388,49 @@ self-custody, larks, or one 2013 experiment — not theft.
 
 ## 8. The defense [HAVE design]
 
-Dual detector sharing a regex-then-checksum core: VC-exposure (GitHub secret
-scanning) fires on any checksum-valid mnemonic; wallet import blocks only
-low-entropy ones, on entropy-compressibility, non-blocking. Plus the
-poisoned-address denylist, seeded in `Econ.SeedDenylist`.
+Two gates that look plausible are both wrong. **Form-validity** is the first: a BIP-39
+checksum certifies structure, not randomness, so it passes every weak seed. **Output-key
+inspection** is the second and less obvious: a key derived by hashing — a brainwallet, an
+AI-composed phrase, or any mnemonic after PBKDF2 — is computationally indistinguishable from
+a CSPRNG key, byte-for-byte identically distributed, so no entropy, compression, or
+statistical test on the key can flag it. (Measured: byte-entropy cleanly separates periodic
+fills and small integers from random, but `SHA256(password)` and a secure key both sit at the
+32-sample maximum.) Output inspection catches only the *raw-structural* families; the hashed
+families, where most victims are, are opaque at the key level.
+
+The deeper point is that the weakness is not an artifact to detect but an **affordance to
+remove**. Deriving a key from a typed input has exactly one advantage — memorability — and
+memorability is the property that makes it guessable. Nobody with a high-entropy input hashes
+it to a key; they use the bytes directly. So the passphrase-to-key path does not merely permit
+weak keys, it *selects* for them: its only users are the ones it endangers. The fix is to
+retire the affordance, not to inspect its outputs.
+
+What remains, ranked by cost over benefit:
+1. **Remove the affordance.** Tooling should not offer "type a secret → get a key" derivation;
+   where it exists, deprecate and warn. Cheapest, at the source, prevents new victims.
+2. **Poisoned-address denylist.** For the families you cannot inspect, refuse funding to
+   known-weak *addresses* (seeded in `Econ.SeedDenylist`). The only mechanism covering the
+   opaque hashed keys, and the strongest honest claim — "not known-weak," never "proven strong."
+3. **Input-side strength check.** At mnemonic generation/import, measure the entropy of the
+   *entropy field* (repeated/sequential words) and flag dictionary passwords. Non-blocking.
+   Same regex-then-checksum core as the VC-exposure detector that flags checksum-valid
+   mnemonics committed to code (GitHub secret scanning).
+4. **Output structural check.** An entropy/compressibility test on raw imported keys for the
+   F1–F6/F8 families. Trivial and portable, but the lowest-value layer: it misses the hashed
+   families and its target users are rare.
+
+**On the value of all this — plainly.** These defenses are sound but their practical payoff is
+small, and we say so. Every layer protects a *self-selected* population: whoever chose a
+memorable key is, by definition, the one doing the dangerous thing. Universal adoption is a
+large ask of the ecosystem; the beneficiaries are a handful of (sometimes well-resourced) users
+saved from a self-inflicted mistake. It is closer to "do not sell hammers labelled *hit your
+own head*" — retire the affordance, cheap and targeted — than to "everyone wear a helmet,"
+which is what universal output-checking would be: costly and low-yield. The economics (§6)
+bound the upside further: attacker net profit is already marginal — a measurable share of
+every swept coin is bid away to miners in the sweep race (§6), and fresh-victim inflow is
+small and declining — so the harm a perfect defense would prevent is itself modest. The contribution is
+the honest mapping of which cheap intervention covers which class, and the denylist artifact,
+not a claim that the sky is falling.
 
 ## 9. Ethics and disclosure [HAVE]
 
