@@ -104,16 +104,26 @@ treat the question of publishing any per-address specifics as a separate, data-
 driven decision governed by the disclosure tiers in §9.
 
 ### Contributions
-1. A read-only, funded-then-swept measurement of the BIP-39 mnemonic-pattern
-   population and the `SHA256(pw)`-as-BIP-39-entropy family (F7), applying the
-   brainwallet-measurement methodology to keys those studies did not cover.
-2. A freshness result: arrival rate of fresh weak-key victims over time. **[DATA]**
-3. Attacker economics: on-chain sweep-fee measurement → a profitability threshold,
-   reframed as a defensive design parameter. **[DATA]**
-4. A shipped defense: a non-blocking BIP-39 strength check + a poisoned-address
-   denylist, contributed upstream.
-5. An auditable, funds-neutral methodology: an open-source scanner that provably
-   cannot move funds, with a pre-registered economic analysis.
+1. A read-only, funded-then-swept measurement across the memorable-mnemonic (target E)
+   population, the raw-key (target K) families, and the `SHA256(pw)`-as-BIP-39-entropy
+   family (F7) — keys prior brainwallet studies did not cover.
+2. A **funder-intent classification** that separates genuine victims from deliberate,
+   honeypot, self-custody, and "lark" deposits — the first such split in this line — valued
+   in the money of the day. It shows the honest good-faith-victim loss is small and highly
+   concentrated, most funded value being self-custody or larks rather than theft.
+3. A novel **attacker-economics** result: sweeping is an all-pay fee auction that taxes a
+   large share of each small drain to miners, so watching is rational only because an
+   enumerated space is near-free to monitor — net drainer profit is marginal and declining.
+4. A **freshness** result: fresh fundings of weak addresses still arrive a decade on,
+   sustained rather than declining — the verdict that governs disclosure.
+5. An **honestly-scoped defense**: no per-use check pencils out (a hashed key is
+   indistinguishable from a good one; a denylist is ~100% cost for ~0 yield), so the one
+   cheap intervention is retiring the memorable-secret-to-key affordance, plus a
+   denylist repurposed as a secret-scanning rule for *exposed* keys — explicitly not a call
+   for universal adoption.
+6. A **funds-neutral, auditable methodology**: an open-source scanner that provably cannot
+   move funds; because a hashed key is opaque, enumerate-and-intersect is the only method,
+   and we make it reproducible with a positive-control self-test.
 
 ## 2. Background [HAVE — prose drafted]
 
@@ -533,7 +543,14 @@ the same, so the measurement carries over.
 [@milksad2026update16] catalogs ever-funded classic brainwallets (SHA256-as-key);
 it documents prevalence but does not report the sweep-latency, drainer-
 concentration, or arrival-rate dynamics we focus on, and does not cover the BIP-39
-mnemonic or F7 populations. Zhou et al. [@zhou2024keyleakage] measure theft from
+mnemonic or F7 populations. It also, like the Ethercombing scan
+[@ise2019ethercombing] — which characterizes the *drainer* rather than the funder —
+does not classify *why* funds arrived at a weak address. Separating genuine victims
+from deliberate, honeypot, self-custody, and "lark" deposits is, to our knowledge,
+first done here (§7.6): an unfiltered funded-address count is dominated by one 2013
+seeding campaign and by self-custody, so the four-actor split is what lets us report a
+good-faith-victim loss (an upper bound) distinct from that much larger non-victim
+value — and value it in the money of the day rather than at today's price. Zhou et al. [@zhou2024keyleakage] measure theft from
 keys leaked on websites, on Ethereum — a different key source in the same spirit of
 characterizing real losses. Two practitioner efforts bracket our families without
 measuring their outcomes: Lopp [@lopp2024repeatedword] enumerates the repeated-word
