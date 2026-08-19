@@ -43,9 +43,11 @@ loss of roughly **\$31,000 in the money of the day** (an upper bound). Sweeps ar
 doing the harvesting — and **no weak address we measured holds a live balance today**.
 Fresh fundings still arrive a decade on, which shapes disclosure. We report value in
 the money of the day, not today's price, and separate four actors — researchers,
-general users, larkers, bad guys — so self-custody and larks stay out of "loss." We
-ship the defense before the specifics: a non-blocking BIP-39 strength check and a
-poisoned-address denylist, contributed upstream. All code, the positive-control
+general users, larkers, bad guys — so self-custody and larks stay out of "loss." The
+economics are self-limiting: sweeping is an all-pay fee auction that hands a large share
+of each small theft to miners, so watching pays only because an enumerated space is
+near-free to monitor — and no per-use defense has a workable cost/benefit, a point we
+make precisely rather than papering over with a mandate. All code, the positive-control
 self-test that makes our null results trustworthy, and a fully auditable record of the
 authoring process accompany the paper.
 
@@ -96,12 +98,14 @@ decides what we can safely disclose and when. Crucially, the tool cannot move
 funds: no code path constructs, signs, or broadcasts a transaction, and it is open
 source so the guarantee is auditable rather than asserted (§9).
 
-**Defense before disclosure.** The fixes that matter — a strength check in BIP-39
-libraries, an import-time warning in wallets, and a poisoned-address denylist —
-need to know only *which patterns* are weak, not *which addresses* are funded. We
-therefore build and contribute the defense on aggregate statistics first, and
-treat the question of publishing any per-address specifics as a separate, data-
-driven decision governed by the disclosure tiers in §9.
+**Disclosure posture.** We separate what we publish from when. Aggregate statistics —
+prevalence, latency, drainer structure, arrival rate — need only *which patterns* are
+weak, not *which addresses* are funded, so we report them freely; publishing any
+per-address specifics is a separate, data-driven decision governed by the freshness
+result and the disclosure tiers of §9. On prevention we are deliberately modest: §8
+shows that no per-use check has a workable cost/benefit for this problem, so the
+actionable guidance is narrow — do not offer memorable-secret-to-key derivation — not a
+universal mandate.
 
 ### Contributions
 1. A read-only, funded-then-swept measurement across the memorable-mnemonic (target E)
@@ -495,11 +499,10 @@ public addresses; under the Common Rule it is not human-subjects research. Where
 co-author's institution requires it, we will obtain a determination letter.
 Anonymized artifact for double-blind review; open-sourced on publication.
 
-**Defense before disclosure.** The library and wallet fixes and the
-poisoned-address list need no knowledge of *which* addresses are funded, only of
-*which patterns* are weak. We land those on aggregate statistics first and decide
-separately what specifics to publish. The disclosure posture is deliberately
-data-driven: whether funded addresses are swept in seconds or sit untouched for
+**Disclosure is data-driven.** Aggregate statistics — which patterns are weak,
+prevalence, latency, drainer structure — need no knowledge of *which* addresses are
+funded, so we report them freely and decide separately what per-address specifics to
+publish. The posture is deliberately data-driven: whether funded addresses are swept in seconds or sit untouched for
 years determines who publication endangers, which is precisely what §7.3–7.4
 measure. Tiers, descending by impact: (1) library/wallet fixes with no offensive
 detail; (2) a k-anonymity address-lookup that reveals nothing about who checks and
@@ -603,11 +606,12 @@ bots, and no weak address holds a live balance today. Fresh fundings still arriv
 decade on, so this is **ongoing, not a post-mortem** — which is what licenses a careful
 disclosure posture. The magnitude is modest; the contribution is the taxonomy of
 memorable-key classes and the four-actor method that keeps self-custody and larks out of
-"loss." Either way the defensive conclusion is the same and shippable now: form-validity is the wrong gate, so
-libraries should measure entropy strength and wallets should warn on import, and
-the poisoned-address denylist lets the ecosystem refuse known-bad seeds without
-anyone needing to enumerate them. We ship those first; we disclose specifics only
-as the freshness data licenses.
+"loss." The defensive takeaway is narrow and honest: form-validity is the wrong gate, and
+so is output-key inspection — a hashed key is indistinguishable from a good one, and a
+denylist is near-total cost for near-zero yield. The one intervention with a workable
+cost/benefit is a design choice, not a per-use check: **do not offer
+memorable-secret-to-key derivation.** We disclose specifics only as the freshness data
+licenses.
 
 ---
 
