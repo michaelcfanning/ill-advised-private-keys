@@ -222,6 +222,11 @@ public static class EmitSet
         foreach (var f in forms.ToList())
             forms.Add(new string(f.Reverse().ToArray()));
 
-        foreach (var f in forms) yield return f;
+        // Drop forms shorter than MinFormLen: an acronym or space-collapse can shrink a long
+        // quote to a 2-4 char string ("the", "cat") that just collides with common short
+        // brainwallets — those aren't the quote, so they'd pollute the class's result.
+        foreach (var f in forms) if (f.Length >= MinFormLen) yield return f;
     }
+
+    public const int MinFormLen = 8;
 }
