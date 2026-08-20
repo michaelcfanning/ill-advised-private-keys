@@ -13,9 +13,9 @@ validates *form* offers no protection against a human who chooses something *mem
 repeated word, a counted sequence, a password hashed into the entropy field. Attackers have
 swept such keys for over a decade. Prior work measured `SHA256(password)` brainwallets and
 weak-RNG generation; we extend the same read-only, funded-then-swept method to the BIP-39
-memorable-mnemonic population, the raw-key (target-K) families, and the family in which
-`SHA256(password)` is used as BIP-39 *entropy* (F7) — keys those studies did not cover — over
-the full chain to 2026.
+memorable-mnemonic population and the raw-key (target-K) families — keys those studies did not
+cover — over the full chain to 2026, and identify a further unscanned family, `SHA256(password)`
+used as *entropy* rather than as a key (F7), as the clearest next target.
 
 We find the current-balance space swept clean (0 hits across 150M+ derived addresses) and,
 from a full ever-funded node walk, a **small and highly concentrated** historical loss. Across
@@ -56,9 +56,11 @@ shortest description of that procedure — a dozen bits, well inside reach.
 **Neighboring populations.** Vasek et al. measured `SHA256(password)` used directly as the
 private key [@vasek2016braindrain]; Milk Sad measured weak-RNG generation, a broken 32-bit
 seed feeding an otherwise-correct pipeline [@milksad2023]. We look at a third case:
-memorable-by-construction BIP-39 phrases, and `SHA256(password)` used as *entropy* (F7). A
-different era, path, and user than the brainwallet cohort — but the downstream funding and
-sweeping dynamics are the same, so the methods and results connect directly.
+memorable-by-construction BIP-39 phrases — a different era, path, and user than the brainwallet
+cohort, but the downstream funding and sweeping dynamics are the same, so the methods and
+results connect directly. A related family, `SHA256(password)` used as *entropy* rather than as
+a key (F7), has never been scanned by anyone; we enumerate it and flag it as the clearest next
+target, but its measurement is future work.
 
 **What we do.** We enumerate the memorable-key space by family (§4), derive addresses across
 the standard HD schemes and script types (§5), and check read-only whether each address ever
@@ -78,9 +80,10 @@ universal mandate.
 
 ### Contributions
 
-1. A read-only, funded-then-swept measurement across the memorable-mnemonic (target E), raw-key
-   (target K), and `SHA256(pw)`-as-entropy (F7) families — keys prior brainwallet studies did
-   not cover, over the full chain to 2026.
+1. A read-only, funded-then-swept measurement across the memorable-mnemonic (target E) and
+   raw-key (target K) families — keys prior brainwallet studies did not cover — over the full
+   chain to 2026, and identification of `SHA256(pw)`-as-entropy (F7), unscanned by anyone, as
+   the clearest next target.
 2. A reproducible **funder-intent classifier** — researcher/honeypot, general-user custody,
    larks, and genuine victims — that turns the manual researcher/owner exclusions of prior
    brainwallet work into a coded, uniform split. It shows the honest good-faith-victim loss is
@@ -407,8 +410,8 @@ researcher seeding campaign (17,784 wallets funded from 36 linked inputs on 31 A
 2015 stress test, distinguished owner-initiated from attacker drains, and valued losses at the
 day's rate. We reuse their instruments — sweep latency, repeated-drain inference,
 compressed/uncompressed fan-out, at-time valuation, and researcher/honeypot exclusion — and
-extend them to populations they did not cover (BIP-39 mnemonic patterns, the raw target-K
-families, and F7), across the full chain to 2026. The Aug-2013 campaign we detect independently
+extend them to populations they did not cover (BIP-39 mnemonic patterns and the raw target-K
+families), across the full chain to 2026. The Aug-2013 campaign we detect independently
 (34 linked funders) is the same event they documented. Castellucci's `brainflayer`
 [@castellucci2015brainflayer] is the offensive counterpart, and Ethercombing / "Blockchain
 Bandit" [@ise2019ethercombing] shows the same drainer-cluster concentration on weak Ethereum
@@ -421,7 +424,7 @@ a broken RNG, not a human choice — but the funding and sweeping dynamics carry
 
 **Adjacent measurement.** Closest in time, a Milk Sad update [@milksad2026update16] catalogs
 ever-funded classic brainwallets but does not report the sweep-latency, drainer-concentration,
-or arrival-rate dynamics we focus on, nor cover the mnemonic or F7 populations; like Ethercombing
+or arrival-rate dynamics we focus on, nor cover the mnemonic population; like Ethercombing
 (which characterizes the drainer, not the funder), it drops the funder-intent classification FC16
 introduced. Our coded four-actor split (§6) makes that classification uniform and reproducible;
 without it, an unfiltered funded-address count is dominated by seeding campaigns and self-custody.
