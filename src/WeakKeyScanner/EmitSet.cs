@@ -20,7 +20,7 @@ public static class EmitSet
     {
         string pattern = "repeat";
         int wordCount = 12, from = 0, to = -1, words = 2048, indices = 1, width = 24;
-        bool firstOnly = false, brain = false, raw = false, append = false, variants = false;
+        bool firstOnly = false, brain = false, raw = false, append = false, variants = false, entropyBrain = false;
         bool f1 = false, f2 = false, f3 = false, f4 = false, f5 = false, f6 = false, f8 = false, allRaw = false;
         string? wordlist = null;
         string outFile = Path.Combine(AppContext.BaseDirectory, "out", "weakset.tsv");
@@ -37,6 +37,7 @@ public static class EmitSet
                 case "--completions": firstOnly = args[++i] == "first"; break;
                 case "--indices": indices = int.Parse(args[++i]); break;
                 case "--brain": brain = true; break;
+                case "--f7": entropyBrain = true; break;
                 case "--variants": variants = true; break;
                 case "--raw": raw = true; break;
                 case "--width": width = int.Parse(args[++i]); break;
@@ -69,7 +70,8 @@ public static class EmitSet
         string rawFams = string.Join("+", new[] { (doF1, "F1"), (doF2, "F2"), (doF3, "F3"),
             (doF4, "F4"), (doF5, "F5"), (doF6, "F6"), (doF8, "F8") }.Where(x => x.Item1).Select(x => x.Item2));
 
-        string target = brain ? "brainwallet SHA256(pw)"
+        string target = entropyBrain ? "F7: SHA256(pw) as BIP-39 entropy -> 24-word -> BIP-44/49/84/86"
+            : brain ? "brainwallet SHA256(pw)"
             : raw ? $"raw target-K [{rawFams}{(doF1 ? $"; F1 w<={width}" : "")}]"
             : $"mnemonic {pattern}/{wordCount} words[{from},{toWord}) indices={indices} completions={(firstOnly ? "first" : "all")}";
 
@@ -83,7 +85,39 @@ public static class EmitSet
         using var w = new StreamWriter(full, append: append);
         if (writeHeader) w.WriteLine("# address\tweakkey\tkind\tpath");
 
-        if (brain)
+        if (entropyBrain)
+        {
+            if (wordlist is null || !File.Exists(wordlist)) { Console.Error.WriteLine("emit --f7 requires --wordlist FILE"); return 2; }
+            // F7 (PATTERNS.md): SHA256(pw) used as BIP-39 *entropy* (not as the key). 32-byte
+            // digest -> 24-word mnemonic -> PBKDF2 -> BIP-44/49/84/86 fan-out. Never scanned by
+            // anyone; same passwords as brainwallets, entirely different addresses.
+            long pws = 0, addrs = 0;
+            var writeLock = new object();
+            System.Threading.Tasks.Parallel.ForEach(
+                File.ReadLines(wordlist).Where(l => l.Length > 0),
+                () => new System.Text.StringBuilder(1 << 16),
+                (pw, _, local) =>
+                {
+                    byte[] ent = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(pw));
+                    string mnemonic;
+                    try { mnemonic = new Mnemonic(Wordlist.English, ent).ToString(); }
+                    catch { return local; }
+                    foreach (var d in Bip39Deriver.Derive(mnemonic, net, indices))
+                    {
+                        local.Append(d.Address).Append('\t').Append(pw).Append('\t')
+                             .Append("f7:").Append(d.Kind).Append('\t').Append(d.Path).Append('\n');
+                        System.Threading.Interlocked.Increment(ref addrs);
+                    }
+                    long done = System.Threading.Interlocked.Increment(ref pws);
+                    if (local.Length > 1 << 15) { lock (writeLock) w.Write(local.ToString()); local.Clear(); }
+                    if ((done & 0x3FFFFF) == 0)
+                        Console.WriteLine($"... {done:N0} passwords, {System.Threading.Interlocked.Read(ref addrs):N0} addresses");
+                    return local;
+                },
+                local => { if (local.Length > 0) lock (writeLock) w.Write(local.ToString()); });
+            n = addrs;
+        }
+        else if (brain)
         {
             if (wordlist is null || !File.Exists(wordlist)) { Console.Error.WriteLine("emit --brain requires --wordlist FILE"); return 2; }
             // Brainwallet: privkey = SHA256(pw), one hash + EC per password. Parallel over the
@@ -189,7 +223,7 @@ public static class EmitSet
     {
         string p = phrase.Trim();
         if (p.Length == 0) yield break;
-        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var forms = new HashSet<string>(StringComparer.Ordinal);
 
         string dep = System.Text.RegularExpressions.Regex.Replace(p, "[^A-Za-z0-9 ]", "");
         dep = System.Text.RegularExpressions.Regex.Replace(dep, " +", " ").Trim();
@@ -207,15 +241,26 @@ public static class EmitSet
                 {
                     string noDot = sep.TrimEnd('.');
                     foreach (var v in new[] { sep, noDot, noDot + "." })
-                        if (v.Length > 0 && seen.Add(v)) yield return v;
+                        if (v.Length > 0) forms.Add(v);
                 }
 
             if (words.Length >= 2)   // first-letter acronym / initialism
             {
                 string ac = new string(words.Select(w => w[0]).ToArray());
-                foreach (var v in new[] { ac.ToLowerInvariant(), ac.ToUpperInvariant() })
-                    if (seen.Add(v)) yield return v;
+                forms.Add(ac.ToLowerInvariant());
+                forms.Add(ac.ToUpperInvariant());
             }
         }
+
+        // …and each form written backwards (a classic "clever" obfuscation).
+        foreach (var f in forms.ToList())
+            forms.Add(new string(f.Reverse().ToArray()));
+
+        // Drop forms shorter than MinFormLen: an acronym or space-collapse can shrink a long
+        // quote to a 2-4 char string ("the", "cat") that just collides with common short
+        // brainwallets — those aren't the quote, so they'd pollute the class's result.
+        foreach (var f in forms) if (f.Length >= MinFormLen) yield return f;
     }
+
+    public const int MinFormLen = 8;
 }
